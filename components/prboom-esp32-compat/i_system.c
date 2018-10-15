@@ -97,10 +97,17 @@
 #include <sys/time.h>
 
 #define MODE_SPI 1
-#define PIN_NUM_MISO 2 //4
-#define PIN_NUM_MOSI 13
-#define PIN_NUM_CLK  14
-#define PIN_NUM_CS   15
+//#define PIN_NUM_MISO 2 //4
+//#define PIN_NUM_MOSI 13
+//#define PIN_NUM_CLK  14
+//#define PIN_NUM_CS   15
+
+#define PIN_NUM_MISO 19
+#define PIN_NUM_MOSI 23
+#define PIN_NUM_CLK  18
+#define PIN_NUM_CS 22
+
+extern SemaphoreHandle_t dispLock;
 
 /*
 SDMMC pin configuration
@@ -194,8 +201,13 @@ static bool init_SD = false;
 
 void Init_SD()
 {
-#if MODE_SPI == 1	
+#if MODE_SPI == 1
+	xSemaphoreTake(dispLock, portMAX_DELAY);
+
 	sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+	host.slot = VSPI_HOST; // HSPI_HOST;
+	host.max_freq_khz = SDMMC_FREQ_DEFAULT;
+
 	//host.command_timeout_ms=200;
 	//host.max_freq_khz = SDMMC_FREQ_PROBING;
     sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
@@ -203,7 +215,7 @@ void Init_SD()
     slot_config.gpio_mosi = PIN_NUM_MOSI;
     slot_config.gpio_sck  = PIN_NUM_CLK;
     slot_config.gpio_cs   = PIN_NUM_CS;
-	slot_config.dma_channel = 1; //2
+	//slot_config.dma_channel = 1; //2
 #else
 	sdmmc_host_t host = SDMMC_HOST_DEFAULT();
 	host.flags = SDMMC_HOST_FLAG_1BIT;
@@ -231,6 +243,8 @@ void Init_SD()
 	lprintf(LO_INFO, "Init_SD: SD card opened.\n");
 	//sdmmc_card_print_info(stdout, card);
 	init_SD = true;
+
+	xSemaphoreGive(dispLock);
 }
 
 typedef struct {
@@ -267,14 +281,20 @@ int I_Open(const char *wad, int flags) {
 	if(strcmp(fds[x].name, fname) == 0)
 	{
 		lprintf(LO_INFO, "I_Open: File already open\n");
+		xSemaphoreTake(dispLock, portMAX_DELAY);
 		rewind(fds[x].file);
+		xSemaphoreGive(dispLock);
 		return x;
 	}
 
 	if (strcmp(fname, fileName)==0) {
+		xSemaphoreTake(dispLock, portMAX_DELAY);
 		fds[x].file=fopen("/sdcard/doom.wad", "rb");
+		xSemaphoreGive(dispLock);
 	} else if(strcmp("prboom.WAD", fname)==0) {
+		xSemaphoreTake(dispLock, portMAX_DELAY);
 		fds[x].file=fopen("/sdcard/prboom.wad", "rb");
+		xSemaphoreGive(dispLock);
 	} 
 	if(fds[x].file) 
 	{ 	
@@ -285,9 +305,12 @@ int I_Open(const char *wad, int flags) {
 		//stat("/sdcard/doom1.wad", &fileStat);
 		//fds[x].size = fileStat.st_size;
 
+		xSemaphoreTake(dispLock, portMAX_DELAY);
 		fseek(fds[x].file, 0L, SEEK_END);
 		fds[x].size=ftell(fds[x].file);
 		rewind(fds[x].file);
+		xSemaphoreGive(dispLock);
+
 		lprintf(LO_INFO, "Size: %d\n", fds[x].size);
 	} else {
 		lprintf(LO_INFO, "I_Open: open %s failed\n", fname);
@@ -300,10 +323,16 @@ int I_Lseek(int ifd, off_t offset, int whence) {
 //	lprintf(LO_INFO, "I_Lseek: Seeking %d.\n", (int)offset);
 	if (whence==SEEK_SET) {
 		fds[ifd].offset=offset;
+
+		xSemaphoreTake(dispLock, portMAX_DELAY);
 		fseek(fds[ifd].file, offset, SEEK_SET);
+		xSemaphoreGive(dispLock);
 	} else if (whence==SEEK_CUR) {
 		fds[ifd].offset+=offset;
+
+		xSemaphoreTake(dispLock, portMAX_DELAY);
 		fseek(fds[ifd].file, offset, SEEK_CUR);
+		xSemaphoreGive(dispLock);
 	} else if (whence==SEEK_END) {
 		lprintf(LO_INFO, "I_Lseek: SEEK_END unimplemented\n");
 	}
@@ -318,7 +347,11 @@ int I_Filelength(int ifd)
 void I_Close(int fd) {
 	lprintf(LO_INFO, "I_Open: Closing File: %s\n", fds[fd].name);
 	sprintf(fds[fd].name, " ");
+	
+	xSemaphoreTake(dispLock, portMAX_DELAY);
 	fclose(fds[fd].file);
+	xSemaphoreGive(dispLock);
+	
 	fds[fd].file=NULL;
 	//esp_vfs_fat_sdmmc_unmount();
 }
@@ -443,7 +476,10 @@ void I_Read(int ifd, void* vbuf, size_t sz)
 	//lprintf(LO_INFO, "I_Read: Reading %d bytes... ", (int)sz);
     for(int i = 0; i < 20; i++)
 	{
+		xSemaphoreTake(dispLock, portMAX_DELAY);
 		readBytes = fread(vbuf, sz, 1, fds[ifd].file);
+		xSemaphoreGive(dispLock);
+
 		if( readBytes == 1)//(int)sz)
 		{
 			return;

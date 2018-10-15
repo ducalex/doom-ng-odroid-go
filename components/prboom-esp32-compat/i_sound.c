@@ -378,35 +378,41 @@ int I_AnySoundStillPlaying(void)
 //
 void IRAM_ATTR I_UpdateSound( void )
 {
+  const short DAC1 = (short)0x8000;
+
   // Mix current sound data.
   // Data, from raw sound, for right and left.
   unsigned char	sample;
-  unsigned char		dl;
-  unsigned char		dr;
+  //unsigned char		dl;
+  //unsigned char		dr;
   
   // Pointers in global mixbuffer, left, right, end.
-  unsigned char*		leftout;
-  unsigned char*		rightout;
+  //unsigned char*		leftout;
+  //unsigned char*		rightout;
+  short* audioBuffer = (short*)mixbuffer;
+
   // Step in mixbuffer, left and right, thus two.
-  int				step;
+  int				step = 0;
 
   // Mixing channel index.
   int				chan;
-    
+  int totalSample;
+
     // Left and right channel
     //  are in global mixbuffer, alternating.
-    leftout = mixbuffer;
-    rightout = mixbuffer+SAMPLECOUNT*SAMPLESIZE+1;
-    step = 2;
+    //leftout = mixbuffer;
+    //rightout = mixbuffer+SAMPLECOUNT*SAMPLESIZE+1;
+    //step = 2;
 
     // Mix sounds into the mixing buffer.
     // Loop over step*SAMPLECOUNT,
     //  that is 512 values for two channels.
-    while (leftout < (mixbuffer+SAMPLECOUNT*SAMPLESIZE))
+    while (audioBuffer < (mixbuffer+SAMPLECOUNT*SAMPLESIZE))
     {
       // Reset left/right value. 
-      dl = 0;
-      dr = 0;
+      //dl = 0;
+      //dr = 0;
+      totalSample = 0;
 
       // Love thy L2 chache - made this a loop.
       // Now more channels could be set at compile time
@@ -422,7 +428,9 @@ void IRAM_ATTR I_UpdateSound( void )
             //  for this channel (sound)
             //  to the current data.
             // Adjust volume accordingly.
-            dl += sample >> 4; //<< channelleftvol_lookup[ chan ])>>16;
+            //dl += sample >> 4; //<< channelleftvol_lookup[ chan ])>>16;
+            totalSample += sample;
+
             //dr += (int)(((float)channelrightvol_lookup[ chan ]/(float)250)*(float)sample);
             // Increment index ???
             channels[ chan ] += 1;
@@ -433,14 +441,14 @@ void IRAM_ATTR I_UpdateSound( void )
           }
       }
       
-      *leftout = dl;
-      *(leftout+1) = dl;    
+      *(audioBuffer++) = DAC1;
+      *(audioBuffer++) = (short)((totalSample / NUM_MIX_CHANNELS) << 8);    
 
       //*rightout = dr;
       //*(rightout+1) = dr;
 
       // Increment current pointers in mixbuffer.
-      leftout += step;
+      //leftout += step;
       //rightout += step;
     }
 }
@@ -470,7 +478,7 @@ void I_InitSound(void)
     .mode = I2S_MODE_MASTER | I2S_MODE_TX | /*I2S_MODE_PDM,*/ I2S_MODE_DAC_BUILT_IN,
     .sample_rate = SAMPLERATE,
     .bits_per_sample = SAMPLESIZE*8, /* the DAC module will only take the 8bits from MSB */
-    .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
+    .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
     .communication_format = I2S_COMM_FORMAT_I2S_MSB,
     .intr_alloc_flags = 0, // default interrupt priority
     .dma_buf_count = 4,
@@ -482,7 +490,7 @@ void I_InitSound(void)
 
   i2s_set_pin(I2S_NUM_0, NULL); //for internal DAC, this will enable both of the internal channels
 
-  i2s_set_dac_mode(I2S_DAC_CHANNEL_LEFT_EN);  
+  i2s_set_dac_mode(I2S_DAC_CHANNEL_BOTH_EN);  
 /*    
       Values:
 

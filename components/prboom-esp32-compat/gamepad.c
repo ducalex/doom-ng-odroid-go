@@ -24,14 +24,37 @@
 #include "gamepad.h"
 #include "lprintf.h"
 
-
+#include "psxcontroller.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "freertos/queue.h"
 #include "driver/gpio.h"
+#include <driver/adc.h>
+
+#define ODROID_GAMEPAD_IO_X ADC1_CHANNEL_6
+#define ODROID_GAMEPAD_IO_Y ADC1_CHANNEL_7
+#define ODROID_GAMEPAD_IO_SELECT GPIO_NUM_27
+#define ODROID_GAMEPAD_IO_START GPIO_NUM_39
+#define ODROID_GAMEPAD_IO_A GPIO_NUM_32
+#define ODROID_GAMEPAD_IO_B GPIO_NUM_33
+#define ODROID_GAMEPAD_IO_MENU GPIO_NUM_13
+#define ODROID_GAMEPAD_IO_VOLUME GPIO_NUM_0
+
+
+typedef struct
+{
+    uint8_t Up;
+    uint8_t Right;
+    uint8_t Down;
+    uint8_t Left;
+    uint8_t Select;
+    uint8_t Start;
+    uint8_t A;
+    uint8_t B;
+} JoystickState;
+
 
 //The gamepad uses keyboard emulation, but for compilation, these variables need to be placed
-//somewhere. This is as good a place as any.
+//somewhere. THis is as good a place as any.
 int usejoystick=0;
 int joyleft, joyright, joyup, joydown;
 
@@ -40,30 +63,26 @@ int joyleft, joyright, joyup, joydown;
 volatile int joyVal=0;
 
 typedef struct {
-	int gpio;
+	int ps2mask;
 	int *key;
-} GPIOKeyMap;
+} JsKeyMap;
 
 //Mappings from PS2 buttons to keys
-static const GPIOKeyMap keymap[]={
-	{36, &key_up},
-	{34, &key_down},
-	{32, &key_left},
-	{39, &key_right},
-	
-	{33, &key_use},				//cross
-	{35, &key_fire},			//circle
-	{35, &key_menu_enter},
-	{0, NULL},
-};
-/*	
+static const JsKeyMap keymap[]={
+	{0x10, &key_up},
+	{0x40, &key_down},
+	{0x80, &key_left},
+	{0x20, &key_right},
+
+	{0x4000, &key_use},				//cross
+	{0x2000, &key_fire},			//circle
 	{0x2000, &key_menu_enter},		//circle
 	{0x8000, &key_pause},			//square
 	{0x1000, &key_weapontoggle},	//triangle
 
 	{0x8, &key_escape},				//start
 	{0x1, &key_map},				//select
-	
+
 	{0x400, &key_strafeleft},		//L1
 	{0x100, &key_speed},			//L2
 	{0x800, &key_straferight},		//R1
@@ -71,48 +90,114 @@ static const GPIOKeyMap keymap[]={
 
 	{0, NULL},
 };
-*/
+
+int JoystickRead()
+{
+	JoystickState state;
+
+
+    int joyX = adc1_get_raw(ODROID_GAMEPAD_IO_X);
+    int joyY = adc1_get_raw(ODROID_GAMEPAD_IO_Y);
+
+    if (joyX > 2048 + 1024)
+    {
+        state.Left = 1;
+        state.Right = 0;
+    }
+    else if (joyX > 1024)
+    {
+        state.Left = 0;
+        state.Right = 1;
+    }
+    else
+    {
+        state.Left = 0;
+        state.Right = 0;
+    }
+
+    if (joyY > 2048 + 1024)
+    {
+        state.Up = 1;
+        state.Down = 0;
+    }
+    else if (joyY > 1024)
+    {
+        state.Up = 0;
+        state.Down = 1;
+    }
+    else
+    {
+        state.Up = 0;
+        state.Down = 0;
+    }
+
+    state.Select = !(gpio_get_level(ODROID_GAMEPAD_IO_SELECT));
+    state.Start = !(gpio_get_level(ODROID_GAMEPAD_IO_START));
+
+    state.A = !(gpio_get_level(ODROID_GAMEPAD_IO_A));
+    state.B = !(gpio_get_level(ODROID_GAMEPAD_IO_B));
+
+    //state.values[ODROID_INPUT_MENU] = !(gpio_get_level(ODROID_GAMEPAD_IO_MENU));
+    //state.values[ODROID_INPUT_VOLUME] = !(gpio_get_level(ODROID_GAMEPAD_IO_VOLUME));
+
+
+	int result = 0;
+
+	if (!state.Up)
+		result |= 0x10;
+
+	if (!state.Down)
+		result |= 0x40;
+
+	if (!state.Left)
+		result |= 0x80;
+
+	if (!state.Right)
+		result |= 0x20;
+
+	if (!state.A)
+		result |= 0x2000;
+
+	if (!state.B)
+		result |= 0x4000;
+
+	if (!state.Start)
+		result |= 0x8;
+
+	if (!state.Select)
+		result |= 0x1;
+
+	return result;
+}
 
 void gamepadPoll(void)
 {
-}
-
-static xQueueHandle gpio_evt_queue = NULL;
-
-static void IRAM_ATTR gpio_isr_handler(void* arg)
-{
-    uint32_t gpio_num = (uint32_t) arg;
-    xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
-/*			event_t ev;
-			int level = gpio_get_level(gpio_num);
-			for (int i=0; keymap[i].key!=NULL; i++)
-				if(keymap[i].gpio == gpio_num)
-				{
-					ev.type=level?ev_keyup:ev_keydown;
-					ev.data1=*keymap[i].key;
-					D_PostEvent(&ev);
-				}
-*/
-}
-
-
-void gpioTask(void *arg) {
-    uint32_t io_num;
-	int level;
+	static int oldPollJsVal=0xffff;
+	int newJoyVal=joyVal;
 	event_t ev;
-    for(;;) {
-        if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
-			for (int i=0; keymap[i].key!=NULL; i++)
-				if(keymap[i].gpio == io_num)
-				{
-					level = gpio_get_level(io_num);
-					//lprintf(LO_INFO, "GPIO[%d] intr, val: %d\n", io_num, level);
-					ev.type=level?ev_keyup:ev_keydown;
-					ev.data1=*keymap[i].key;
-					D_PostEvent(&ev);
-				}
-        }
-    }
+
+	for (int i=0; keymap[i].key!=NULL; i++) {
+		if ((oldPollJsVal^newJoyVal)&keymap[i].ps2mask) {
+			ev.type=(newJoyVal&keymap[i].ps2mask)?ev_keyup:ev_keydown;
+			ev.data1=*keymap[i].key;
+			D_PostEvent(&ev);
+		}
+	}
+
+	oldPollJsVal=newJoyVal;
+}
+
+
+
+void jsTask(void *arg) {
+	int oldJoyVal=0xFFFF;
+	printf("Joystick task starting.\n");
+	while(1) {
+		vTaskDelay(20/portTICK_PERIOD_MS);
+		joyVal=JoystickRead();
+//		if (joyVal!=oldJoyVal) printf("Joy: %x\n", joyVal^0xffff);
+		oldJoyVal=joyVal;
+	}
 }
 
 void gamepadInit(void)
@@ -120,39 +205,31 @@ void gamepadInit(void)
 	lprintf(LO_INFO, "gamepadInit: Initializing game pad.\n");
 }
 
-void jsInit() 
+void JoystickInit()
 {
-	gpio_config_t io_conf;
-    //disable pull-down mode
-    io_conf.pull_down_en = 0;
-    //disable pull-up mode
-    io_conf.pull_up_en = 0;
-    //interrupt of rising edge
-    io_conf.intr_type = GPIO_INTR_ANYEDGE;
-    //bit mask of the pins, use GPIO... here
-	for (int i=0; keymap[i].key!=NULL; i++)
-    	if(i==0)
-			io_conf.pin_bit_mask = (1ULL<<keymap[i].gpio);
-		else 
-			io_conf.pin_bit_mask |= (1ULL<<keymap[i].gpio);
-    //set as input mode    
-    io_conf.mode = GPIO_MODE_INPUT;
-    //enable pull-up mode
-    io_conf.pull_up_en = 1;
-    gpio_config(&io_conf);
+    gpio_set_direction(ODROID_GAMEPAD_IO_SELECT, GPIO_MODE_INPUT);
+	gpio_set_pull_mode(ODROID_GAMEPAD_IO_SELECT, GPIO_PULLUP_ONLY);
 
+	gpio_set_direction(ODROID_GAMEPAD_IO_START, GPIO_MODE_INPUT);
 
-    //create a queue to handle gpio event from isr
-    gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
-    //start gpio task
-	xTaskCreatePinnedToCore(&gpioTask, "GPIO", 1500, NULL, 7, NULL, 0);
+	gpio_set_direction(ODROID_GAMEPAD_IO_A, GPIO_MODE_INPUT);
+	gpio_set_pull_mode(ODROID_GAMEPAD_IO_A, GPIO_PULLUP_ONLY);
 
-    //install gpio isr service
-    gpio_install_isr_service(ESP_INTR_FLAG_SHARED);
-    //hook isr handler for specific gpio pin
-	for (int i=0; keymap[i].key!=NULL; i++)
-    	gpio_isr_handler_add(keymap[i].gpio, gpio_isr_handler, (void*) keymap[i].gpio);
+    gpio_set_direction(ODROID_GAMEPAD_IO_B, GPIO_MODE_INPUT);
+	gpio_set_pull_mode(ODROID_GAMEPAD_IO_B, GPIO_PULLUP_ONLY);
 
-	lprintf(LO_INFO, "jsInit: GPIO task created.\n");
+	adc1_config_width(ADC_WIDTH_12Bit);
+    adc1_config_channel_atten(ODROID_GAMEPAD_IO_X, ADC_ATTEN_11db);
+	adc1_config_channel_atten(ODROID_GAMEPAD_IO_Y, ADC_ATTEN_11db);
+
+	gpio_set_direction(ODROID_GAMEPAD_IO_MENU, GPIO_MODE_INPUT);
+	gpio_set_pull_mode(ODROID_GAMEPAD_IO_MENU, GPIO_PULLUP_ONLY);
+
+    gpio_set_direction(ODROID_GAMEPAD_IO_VOLUME, GPIO_MODE_INPUT);
 }
 
+void jsInit() {
+	//Starts the js task
+	JoystickInit();
+	xTaskCreatePinnedToCore(&jsTask, "js", 5000, NULL, 7, NULL, 0);
+}

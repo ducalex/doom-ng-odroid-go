@@ -25,6 +25,7 @@
 
 #include "sdkconfig.h"
 
+#if 0
 #define PSX_CLK CONFIG_HW_PSX_CLK
 #define PSX_DAT CONFIG_HW_PSX_DAT
 #define PSX_ATT CONFIG_HW_PSX_ATT
@@ -145,3 +146,4 @@ void psxcontrollerInit() {
 
 #endif
 
+#endif

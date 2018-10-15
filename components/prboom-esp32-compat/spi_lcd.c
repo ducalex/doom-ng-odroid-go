@@ -22,18 +22,19 @@
 #include "soc/gpio_struct.h"
 #include "driver/gpio.h"
 #include "esp_heap_caps.h"
+#include "driver/ledc.h"
 
 #include "sdkconfig.h"
 
 
-#if 0
-#define PIN_NUM_MISO 25
+#if 1
+#define PIN_NUM_MISO 19
 #define PIN_NUM_MOSI 23
-#define PIN_NUM_CLK  19
-#define PIN_NUM_CS   22
+#define PIN_NUM_CLK  18
+#define PIN_NUM_CS   5
 #define PIN_NUM_DC   21
-#define PIN_NUM_RST  18
-#define PIN_NUM_BCKL 5
+#define PIN_NUM_RST  -1
+#define PIN_NUM_BCKL 14
 #else
 #define PIN_NUM_MOSI CONFIG_HW_LCD_MOSI_GPIO
 #define PIN_NUM_MISO CONFIG_HW_LCD_MISO_GPIO
@@ -85,33 +86,78 @@ static const ili_init_cmd_t ili_init_cmds[]={
 #if (CONFIG_HW_LCD_TYPE == 0)
 
 
-static const ili_init_cmd_t ili_init_cmds[]={
-    {0xCF, {0x00, 0x83, 0X30}, 3},
-    {0xED, {0x64, 0x03, 0X12, 0X81}, 4},
-    {0xE8, {0x85, 0x01, 0x79}, 3},
-    {0xCB, {0x39, 0x2C, 0x00, 0x34, 0x02}, 5},
+#define MADCTL_MY  0x80
+#define MADCTL_MX  0x40
+#define MADCTL_MV  0x20
+#define MADCTL_ML  0x10
+#define MADCTL_MH 0x04
+#define TFT_RGB_BGR 0x08
+#define TFT_CMD_SWRESET	0x01
+
+
+// 2.4" LCD
+DRAM_ATTR static const ili_init_cmd_t ili_init_cmds[] = {
+    // VCI=2.8V
+    //************* Start Initial Sequence **********//
+    {TFT_CMD_SWRESET, {0}, 0x80},
+    {0xCF, {0x00, 0xc3, 0x30}, 3},
+    {0xED, {0x64, 0x03, 0x12, 0x81}, 4},
+    {0xE8, {0x85, 0x00, 0x78}, 3},
+    {0xCB, {0x39, 0x2c, 0x00, 0x34, 0x02}, 5},
     {0xF7, {0x20}, 1},
     {0xEA, {0x00, 0x00}, 2},
-    {0xC0, {0x26}, 1},
-    {0xC1, {0x11}, 1},
-    {0xC5, {0x35, 0x3E}, 2},
-    {0xC7, {0xBE}, 1},
-    {0x36, {0x28}, 1},
+    {0xC0, {0x1B}, 1},    //Power control   //VRH[5:0]
+    {0xC1, {0x12}, 1},    //Power control   //SAP[2:0];BT[3:0]
+    {0xC5, {0x32, 0x3C}, 2},    //VCM control
+    {0xC7, {0x91}, 1},    //VCM control2
+    //{0x36, {(MADCTL_MV | MADCTL_MX | TFT_RGB_BGR)}, 1},    // Memory Access Control
+    {0x36, {(MADCTL_MV | MADCTL_MY | TFT_RGB_BGR)}, 1},    // Memory Access Control
     {0x3A, {0x55}, 1},
-    {0xB1, {0x00, 0x1B}, 2},
-    {0xF2, {0x08}, 1},
-    {0x26, {0x01}, 1},
-    {0xE0, {0x1F, 0x1A, 0x18, 0x0A, 0x0F, 0x06, 0x45, 0X87, 0x32, 0x0A, 0x07, 0x02, 0x07, 0x05, 0x00}, 15},
-    {0XE1, {0x00, 0x25, 0x27, 0x05, 0x10, 0x09, 0x3A, 0x78, 0x4D, 0x05, 0x18, 0x0D, 0x38, 0x3A, 0x1F}, 15},
-    {0x2A, {0x00, 0x00, 0x00, 0xEF}, 4},
-    {0x2B, {0x00, 0x00, 0x01, 0x3f}, 4}, 
-    {0x2C, {0}, 0},
-    {0xB7, {0x07}, 1},
-    {0xB6, {0x0A, 0x82, 0x27, 0x00}, 4},
-    {0x11, {0}, 0x80},
-    {0x29, {0}, 0x80},
-    {0, {0}, 0xff},
+    {0xB1, {0x00, 0x1B}, 2},  // Frame Rate Control (1B=70, 1F=61, 10=119)
+    {0xB6, {0x0A, 0xA2}, 2},    // Display Function Control
+    {0xF6, {0x01, 0x30}, 2},
+    {0xF2, {0x00}, 1},    // 3Gamma Function Disable
+    {0x26, {0x01}, 1},     //Gamma curve selected
+
+    //Set Gamma
+    {0xE0, {0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08, 0x4E, 0xF1, 0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00}, 15},
+    {0XE1, {0x00, 0x0E, 0x14, 0x03, 0x11, 0x07, 0x31, 0xC1, 0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F}, 15},
+
+    {0x11, {0}, 0x80},    //Exit Sleep
+    {0x29, {0}, 0x80},    //Display on
+
+    {0, {0}, 0xff}
 };
+
+static void backlight_init()
+{
+    // (duty range is 0 ~ ((2**bit_num)-1)
+    const int DUTY_MAX = 0x1fff;
+    
+    //configure timer0
+    ledc_timer_config_t ledc_timer;
+    memset(&ledc_timer, 0, sizeof(ledc_timer));
+    ledc_timer.bit_num = LEDC_TIMER_13_BIT; //set timer counter bit number
+    ledc_timer.freq_hz = 5000;              //set frequency of pwm
+    ledc_timer.speed_mode = LEDC_LOW_SPEED_MODE;   //timer mode,
+    ledc_timer.timer_num = LEDC_TIMER_0;    //timer index
+    ledc_timer_config(&ledc_timer);
+    
+    //set the configuration
+    ledc_channel_config_t ledc_channel;
+    memset(&ledc_channel, 0, sizeof(ledc_channel));
+    
+    ledc_channel.channel = LEDC_CHANNEL_0;
+    ledc_channel.duty = DUTY_MAX;
+    ledc_channel.gpio_num = PIN_NUM_BCKL;
+    ledc_channel.intr_type = LEDC_INTR_FADE_END;
+    ledc_channel.speed_mode = LEDC_LOW_SPEED_MODE;    
+    ledc_channel.timer_sel = LEDC_TIMER_0;
+    ledc_channel_config(&ledc_channel);
+    
+    //ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, DUTY_MAX);
+    //ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);    
+}
 
 #endif
 
@@ -159,14 +205,14 @@ void ili_init(spi_device_handle_t spi)
     int cmd=0;
     //Initialize non-SPI GPIOs
     gpio_set_direction(PIN_NUM_DC, GPIO_MODE_OUTPUT);
-    gpio_set_direction(PIN_NUM_RST, GPIO_MODE_OUTPUT);
+    //gpio_set_direction(PIN_NUM_RST, GPIO_MODE_OUTPUT);
     //gpio_set_direction(PIN_NUM_BCKL, GPIO_MODE_OUTPUT);
 
     //Reset the display
-    gpio_set_level(PIN_NUM_RST, 0);
-    vTaskDelay(100 / portTICK_RATE_MS);
-    gpio_set_level(PIN_NUM_RST, 1);
-    vTaskDelay(100 / portTICK_RATE_MS);
+    //gpio_set_level(PIN_NUM_RST, 0);
+    //vTaskDelay(100 / portTICK_RATE_MS);
+    //gpio_set_level(PIN_NUM_RST, 1);
+    //vTaskDelay(100 / portTICK_RATE_MS);
 
     //Send all the commands
     while (ili_init_cmds[cmd].databytes!=0xff) {
@@ -181,13 +227,8 @@ void ili_init(spi_device_handle_t spi)
         cmd++;
     }
 
-    ///Enable backlight
-#if CONFIG_HW_INV_BL
-    //gpio_set_level(PIN_NUM_BCKL, 0);
-#else
-    //gpio_set_level(PIN_NUM_BCKL, 1);
-#endif
-
+    //Enable backlight
+    backlight_init();
 }
 
 
@@ -260,6 +301,7 @@ static uint32_t *currFbPtr=NULL;
 #endif
 SemaphoreHandle_t dispSem = NULL;
 SemaphoreHandle_t dispDoneSem = NULL;
+SemaphoreHandle_t dispLock = NULL;
 
 #define NO_SIM_TRANS 5 //Amount of SPI transfers to queue in parallel
 #define MEM_PER_TRANS 320*2 //in 16-bit words
@@ -291,10 +333,12 @@ void IRAM_ATTR displayTask(void *arg) {
         .pre_cb=ili_spi_pre_transfer_callback,  //Specify pre-transfer callback to handle D/C line
     };
 
+    xSemaphoreTake(dispLock, portMAX_DELAY);
+
 	printf("*** Display task starting.\n");
 
     //heap_caps_print_heap_info(MALLOC_CAP_DMA);
-
+  
     //Initialize the SPI bus
     ret=spi_bus_initialize(VSPI_HOST, &buscfg, 2);  // DMA Channel
     assert(ret==ESP_OK);
@@ -315,9 +359,12 @@ void IRAM_ATTR displayTask(void *arg) {
 		trans[x].tx_buffer=&dmamem[x];
 	}
 	xSemaphoreGive(dispDoneSem);
+    xSemaphoreGive(dispLock);
 
 	while(1) {
 		xSemaphoreTake(dispSem, portMAX_DELAY);
+        xSemaphoreTake(dispLock, portMAX_DELAY);
+
 //		printf("Display task: frame.\n");
 #ifndef DOUBLE_BUFFER
 		uint8_t *myData=(uint8_t*)currFbPtr;
@@ -364,6 +411,8 @@ void IRAM_ATTR displayTask(void *arg) {
 			assert(ret==ESP_OK);
 			inProgress--;
 		}
+
+        xSemaphoreGive(dispLock);
 	}
 }
 
@@ -392,6 +441,8 @@ void spi_lcd_init() {
 	printf("spi_lcd_init()\n");
     dispSem=xSemaphoreCreateBinary();
     dispDoneSem=xSemaphoreCreateBinary();
+    dispLock = xSemaphoreCreateMutex();
+
 #ifdef DOUBLE_BUFFER
 	//currFbPtr=pvPortMallocCaps(320*240, MALLOC_CAP_32BIT);
     currFbPtr=heap_caps_malloc(320*240, MALLOC_CAP_32BIT);
