@@ -1,3 +1,4 @@
 build/
 *.gch
+sdkconfig.old
 
