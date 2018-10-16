@@ -69,7 +69,7 @@ int snd_samplerate = 0;
 int channelsOut = 1;
 
 // Needed for calling the actual sound output.
-#define SAMPLECOUNT		512
+#define SAMPLECOUNT		128
 #define NUM_MIX_CHANNELS		8
 // It is 2 for 16bit, and 2 for two channels.
 //#define BUFMUL                  4
@@ -158,30 +158,30 @@ void* getsfx(char* sfxname, int* len)
 
     // Pads the sound effect out to the mixing buffer size.
     // The original realloc would interfere with zone memory.
-    //paddedsize = ((size-8 + (SAMPLECOUNT-1)) / SAMPLECOUNT) * SAMPLECOUNT;
+    paddedsize = ((size-8 + (SAMPLECOUNT-1)) / SAMPLECOUNT) * SAMPLECOUNT;
 
     // Allocate from zone memory.
-    //paddedsfx = (unsigned char*)Z_Malloc( paddedsize+8, PU_STATIC, 0 );
+    paddedsfx = (unsigned char*)Z_Malloc( paddedsize+8, PU_STATIC, 0 );
     // ddt: (unsigned char *) realloc(sfx, paddedsize+8);
     // This should interfere with zone memory handling,
     //  which does not kick in in the soundserver.
 
     // Now copy and pad.
-    //memcpy(  paddedsfx, sfx, size );
-    //for (i=size ; i<paddedsize+8 ; i++)
-    //    paddedsfx[i] = 128;
+    memcpy(  paddedsfx, sfx, size );
+    for (i=size ; i<paddedsize+8 ; i++)
+        paddedsfx[i] = 128;
 
     // Remove the cached lump.
     //Z_Free( sfx );
     //W_UnlockLumpNum( sfxlump );
 
     // Preserve padded length.
-    //*len = paddedsize;
-    *len = size;
-    return (void *) (sfx);
+    *len = paddedsize;
+    //*len = size;
+    //return (void *) (sfx);
 
     // Return allocated padded data.
-    //return (void *) (paddedsfx + 8);
+    return (void *) (paddedsfx + 8);
 }
 
 
@@ -397,6 +397,7 @@ void IRAM_ATTR I_UpdateSound( void )
   // Mixing channel index.
   int				chan;
   int totalSample;
+  int totalChannelCount;
 
     // Left and right channel
     //  are in global mixbuffer, alternating.
@@ -413,6 +414,7 @@ void IRAM_ATTR I_UpdateSound( void )
       //dl = 0;
       //dr = 0;
       totalSample = 0;
+      totalChannelCount = 0;
 
       // Love thy L2 chache - made this a loop.
       // Now more channels could be set at compile time
@@ -424,12 +426,16 @@ void IRAM_ATTR I_UpdateSound( void )
           {
             // Get the raw data from the channel. 
             sample = *channels[ chan ];
-            // Add left and right part
-            //  for this channel (sound)
-            //  to the current data.
-            // Adjust volume accordingly.
-            //dl += sample >> 4; //<< channelleftvol_lookup[ chan ])>>16;
-            totalSample += sample;
+            if (sample != 0)
+            {
+              // Add left and right part
+              //  for this channel (sound)
+              //  to the current data.
+              // Adjust volume accordingly.
+              //dl += sample >> 4; //<< channelleftvol_lookup[ chan ])>>16;
+              totalSample += sample;
+              ++totalChannelCount;
+            }
 
             //dr += (int)(((float)channelrightvol_lookup[ chan ]/(float)250)*(float)sample);
             // Increment index ???
@@ -442,7 +448,15 @@ void IRAM_ATTR I_UpdateSound( void )
       }
       
       *(audioBuffer++) = DAC1;
-      *(audioBuffer++) = (short)((totalSample / NUM_MIX_CHANNELS) << 8);    
+
+      if (totalChannelCount == 0)
+      {
+        *(audioBuffer++) = 0x80;
+      }
+      else
+      {
+        *(audioBuffer++) = (short)(((totalSample / totalChannelCount)) << 8);
+      }
 
       //*rightout = dr;
       //*(rightout+1) = dr;
@@ -481,8 +495,8 @@ void I_InitSound(void)
     .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
     .communication_format = I2S_COMM_FORMAT_I2S_MSB,
     .intr_alloc_flags = 0, // default interrupt priority
-    .dma_buf_count = 4,
-    .dma_buf_len = 64,
+    .dma_buf_count = 2,
+    .dma_buf_len = SAMPLECOUNT * 2 * 2, // (2) 16bit channels
     .use_apll = false
   };
 
