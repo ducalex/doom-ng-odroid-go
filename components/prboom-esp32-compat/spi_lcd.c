@@ -331,6 +331,7 @@ void IRAM_ATTR displayTask(void *arg) {
         .spics_io_num=PIN_NUM_CS,               //CS pin
         .queue_size=NO_SIM_TRANS,               //We want to be able to queue this many transfers
         .pre_cb=ili_spi_pre_transfer_callback,  //Specify pre-transfer callback to handle D/C line
+        .flags = SPI_DEVICE_NO_DUMMY
     };
 
     xSemaphoreTake(dispLock, portMAX_DELAY);
@@ -340,10 +341,10 @@ void IRAM_ATTR displayTask(void *arg) {
     //heap_caps_print_heap_info(MALLOC_CAP_DMA);
   
     //Initialize the SPI bus
-    ret=spi_bus_initialize(VSPI_HOST, &buscfg, 2);  // DMA Channel
+    ret=spi_bus_initialize(HSPI_HOST, &buscfg, 2);  // DMA Channel
     assert(ret==ESP_OK);
     //Attach the LCD to the SPI bus
-    ret=spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
+    ret=spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
     assert(ret==ESP_OK);
     //Initialize the LCD
     ili_init(spi);

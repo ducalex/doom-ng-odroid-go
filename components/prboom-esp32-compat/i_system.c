@@ -205,7 +205,7 @@ void Init_SD()
 	xSemaphoreTake(dispLock, portMAX_DELAY);
 
 	sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-	host.slot = VSPI_HOST; // HSPI_HOST;
+	host.slot = HSPI_HOST; // HSPI_HOST;
 	host.max_freq_khz = SDMMC_FREQ_DEFAULT;
 
 	//host.command_timeout_ms=200;
