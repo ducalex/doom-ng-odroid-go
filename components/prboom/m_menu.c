@@ -756,7 +756,7 @@ void M_LoadSelect(int choice)
 {
   // CPhipps - Modified so savegame filename is worked out only internal
   //  to g_game.c, this only passes the slot.
-
+  lprintf(LO_INFO, "M_LoadSelect: selected choice %d\n", choice);
   G_LoadGame(choice, false); // killough 3/16/98, 5/15/98: add slot, cmd
 
   M_ClearMenus ();
@@ -787,6 +787,7 @@ void M_LoadGame (int choice)
 {
   /* killough 5/26/98: exclude during demo recordings
    * cph - unless a new demo */
+  lprintf(LO_INFO, "M_LoadGame choice %d... demorecording=%i, compatibility_level=%d, prboom_2_compatibility=%d\n", choice, demorecording, compatibility_level, prboom_2_compatibility);
   if (demorecording && (compatibility_level < prboom_2_compatibility))
     {
     M_StartMessage("you can't load a game\n"
@@ -4175,6 +4176,7 @@ boolean M_Responder (event_t* ev) {
   // Save Game string input
 
   if (saveStringEnter) {
+    lprintf(LO_INFO, "M_Responder: saveStringEnter is true\n");
     if (ch == key_menu_backspace)                            // phares 3/7/98
       {
       if (saveCharIndex > 0)
@@ -4199,6 +4201,7 @@ boolean M_Responder (event_t* ev) {
 
       else
   {
+    lprintf(LO_INFO, "M_Responder: on the else branch inside saveStringEnter\n");
   ch = toupper(ch);
   if (ch >= 32 && ch <= 127 &&
       saveCharIndex < SAVESTRINGSIZE-1 &&
@@ -4208,12 +4211,14 @@ boolean M_Responder (event_t* ev) {
     savegamestrings[saveSlot][saveCharIndex] = 0;
     }
   }
+    lprintf(LO_INFO, "M_Responder: exiting with return true\n");
     return true;
   }
 
   // Take care of any messages that need input
 
   if (messageToPrint) {
+    lprintf(LO_INFO, "M_Responder: message needs input %d\n", messageNeedsInput);
     if (messageNeedsInput == true &&
   !(ch == ' ' || ch == 'n' || ch == 'y' || ch == key_escape)) // phares
       return false;
