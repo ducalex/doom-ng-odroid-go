@@ -288,12 +288,19 @@ int I_Open(const char *wad, int flags) {
 	}
 
 	if (strcmp(fname, fileName)==0) {
+		char filepath[256];
+		strcpy(filepath, I_DoomExeDir());
+		strcat(filepath, "/doom.wad");
 		xSemaphoreTake(dispLock, portMAX_DELAY);
-		fds[x].file=fopen("/sdcard/doom.wad", "rb");
+		fds[x].file=fopen(filepath, "rb");
 		xSemaphoreGive(dispLock);
 	} else if(strcmp("prboom.WAD", fname)==0) {
+		char filepath[256];
+		strcpy(filepath, I_DoomExeDir());
+		strcat(filepath, "/prboom.wad");
+		
 		xSemaphoreTake(dispLock, portMAX_DELAY);
-		fds[x].file=fopen("/sdcard/prboom.wad", "rb");
+		fds[x].file=fopen(filepath, "rb");
 		xSemaphoreGive(dispLock);
 	} 
 	if(fds[x].file) 
