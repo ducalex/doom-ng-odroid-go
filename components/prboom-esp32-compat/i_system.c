@@ -274,7 +274,7 @@ int I_Open(const char *wad, int flags) {
 
 	if(x == 31 && fds[x].file!=NULL)
 	{
-		lprintf(LO_INFO, "I_Open: Too many hanfdles open\n");
+		lprintf(LO_INFO, "I_Open: Too many handles open\n");
 		return -1;
 	}
 
@@ -288,9 +288,11 @@ int I_Open(const char *wad, int flags) {
 	}
 
 	if (strcmp(fname, fileName)==0) {
+		printf("Trying to load %s\n", fileName);
 		char filepath[256];
 		strcpy(filepath, I_DoomExeDir());
 		strcat(filepath, "/doom.wad");
+		printf("Looking at path %s\n", filepath);
 		xSemaphoreTake(dispLock, portMAX_DELAY);
 		fds[x].file=fopen(filepath, "rb");
 		xSemaphoreGive(dispLock);
@@ -500,12 +502,12 @@ void I_Read(int ifd, void* vbuf, size_t sz)
 
 const char *I_DoomExeDir(void)
 {
-  return "/sd/odroid/data/doom";
+  return "/sdcard/odroid/data/doom";
 }
 
 const char *I_DoomSaveDir(void)
 {
-  return "/sd/roms/doom";
+  return "/sdcard/roms/doom";
 }
 
 
