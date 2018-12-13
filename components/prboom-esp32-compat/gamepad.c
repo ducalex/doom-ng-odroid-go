@@ -22,6 +22,7 @@
 #include "g_game.h"
 #include "d_main.h"
 #include "m_cheat.h"
+#include "doomstat.h"
 #include "gamepad.h"
 #include "lprintf.h"
 
@@ -186,7 +187,11 @@ int JoystickRead()
 	if(state.values[ODROID_INPUT_VOLUME] && state.values[ODROID_INPUT_RIGHT] && !previousJoystickState.values[ODROID_INPUT_RIGHT]){
 		//volume+right pressed at the same time
 		char code[9];
+		if(cheatCurrentLevel == 1 && gamemission == doom){
+			cheatCurrentLevel = 11; //Doom idclev codes are in the form E#M#
+		}
 		lprintf(LO_INFO, "cheatCurrentLevel = %02d\n", cheatCurrentLevel);
+		doom_printf("Cheat level %02d", cheatCurrentLevel);
 
 		sprintf(code, "idclev%02d", cheatCurrentLevel);
 		lprintf(LO_INFO, "idclev code: %s\n", code);
@@ -195,7 +200,7 @@ int JoystickRead()
 			M_FindCheats(code[i]);
 		}
 		cheatCurrentLevel++;
-		if(cheatCurrentLevel > 32){
+		if(cheatCurrentLevel > 49){
 			cheatCurrentLevel = 1; 
 		}
 		result = 0;
