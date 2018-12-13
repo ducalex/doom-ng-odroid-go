@@ -493,9 +493,13 @@ void I_Read(int ifd, void* vbuf, size_t sz)
 
 const char *I_DoomExeDir(void)
 {
-  return "";
+  return "/sd/odroid/data/doom";
 }
 
+const char *I_DoomSaveDir(void)
+{
+  return "/sd/roms/doom";
+}
 
 
 char* I_FindFile(const char* wfname, const char* ext)
