@@ -60,6 +60,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "nvs_flash.h"
 
 //include support for odroid-go
 #include "../odroid/odroid_sdcard.h"
@@ -243,6 +244,7 @@ int doom_main(int argc, char const * const *argv)
   Z_Init();                  /* 1/18/98 killough: start up memory stuff first */
   // System LED support for Odroid-GO
   lprintf(LO_INFO, "\nLoading System LED support...\n");
+  nvs_flash_init();
   odroid_system_init();
   lprintf(LO_INFO, "Finished loading LED support.\n");
   
