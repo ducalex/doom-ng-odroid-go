@@ -242,6 +242,7 @@ void gamepadInit(void)
 
 void JoystickInit()
 {
+    printf("JoystickInit(): About to call odroid_input_gamepad_init()\n");
     odroid_input_gamepad_init();
 }
 

@@ -29,7 +29,7 @@
 #include "freertos/task.h"
 #include <stdlib.h>
 #include "esp_err.h"
-//#include "nvs_flash.h"
+#include "nvs_flash.h"
 //#include "esp_partition.h"
 
 //#include "i_system.h"
@@ -49,7 +49,14 @@ void doomEngineTask(void *pvParameters)
 
 void app_main()
 {
+	printf("app_main(): calling spi_lcd_init()\n");
 	spi_lcd_init();
+	// Non-Volatile Storage support for Odroid-GO
+  	printf("\nLoading Odroid-GO NVS support...\n");
+	nvs_flash_init();
+	printf("Finished loading NVS support.\n");
+	printf("app_main(): calling jsInit()\n");
 	jsInit();
+	printf("app_main(): calling doomEngineTask\n");
 	xTaskCreatePinnedToCore(&doomEngineTask, "doomEngine", 18000, NULL, 5, NULL, 0);
 }
