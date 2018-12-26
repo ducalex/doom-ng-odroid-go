@@ -502,12 +502,12 @@ void I_Read(int ifd, void* vbuf, size_t sz)
 
 const char *I_DoomExeDir(void)
 {
-  return "/sdcard/odroid/data/doom";
+  return "/sdcard/roms/doom";
 }
 
 const char *I_DoomSaveDir(void)
 {
-  return "/sdcard/roms/doom";
+  return "/sdcard/odroid/data/doom";
 }
 
 
