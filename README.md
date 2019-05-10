@@ -70,3 +70,5 @@ to:
             slot_config->dma_channel);
     if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
 ````
+
+For more information refer to https://github.com/espressif/esp-idf/issues/1597 but the proposed patch disables too much in my opinion.
