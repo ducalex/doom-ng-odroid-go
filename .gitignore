@@ -1,4 +1,5 @@
 build/
 *.gch
 sdkconfig.old
-
+.vscode/
+*.fw
