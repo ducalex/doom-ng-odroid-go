@@ -52,12 +52,18 @@
 #include "lprintf.h"
 #include "s_sound.h"
 
+#include "mmus2mid.h"
+#include "midifile.h"
+#include "oplplayer.h"
+
 #include "doomdef.h"
 #include "doomstat.h"
 #include "doomtype.h"
 
 #include "d_main.h"
 #include "dma.h"
+
+const music_player_t *music_player = &opl_synth_player;
 
 //SemaphoreHandle_t dmaChannel2Sem = NULL;
 bool audioStarted = false;
@@ -427,6 +433,18 @@ void IRAM_ATTR I_UpdateSound( void )
       totalSample = 0;
       totalChannelCount = 0;
 
+      if (musicPlaying) {
+        int16_t stream[2] = {0};
+        music_player->render(&stream, 1); // It returns 2 (stereo) 16bits values per sample
+        if (stream[1] < 0) stream[1] = 0; // drop negative values, our DAC doesn't like that
+
+        // not sure which sounds better:
+        //totalSample = 0.007781982421875 * stream[1] * 5; // 16bit to 8bit because the DAC currently only uses 8bit?
+        totalSample = stream[1] >> 4; // drop a few bits otherwise it's too loud, same as dividing by 16
+
+        totalChannelCount = 1;
+    }
+
       // Love thy L2 chache - made this a loop.
       // Now more channels could be set at compile time
       //  as well. Thus loop those  channels.
@@ -562,7 +580,9 @@ void I_InitSound(void)
   // Now initialize mixbuffer with zero.
   for ( int i = 0; i< MIXBUFFERSIZE; i++ )
     mixbuffer[i] = 0;
-  
+
+  music_player->init(SAMPLERATE); //  * 2
+
   // Finished initialization.
   lprintf(LO_INFO, "I_InitSound: sound module ready\n");
 
@@ -576,47 +596,58 @@ void I_InitSound(void)
 void I_ShutdownMusic(void)
 {
   lprintf(LO_INFO, "I_ShutdownMusic: called\n");
+  music_player->shutdown();
 }
 
 void I_InitMusic(void)
 {
   lprintf(LO_INFO, "I_InitMusic: called\n");
+  //music_player->init(SAMPLERATE * 2);
 }
 
 void I_PlaySong(int handle, int looping)
 {
   lprintf(LO_INFO, "I_PlaySong: %d %d\n", handle, looping);
+  music_player->play(handle, looping);
   musicPlaying = true;
 }
-
-extern int mus_pause_opt; // From m_misc.c
 
 void I_PauseSong (int handle)
 {
   lprintf(LO_INFO, "I_PauseSong: handle: %d.\n", handle);
+  music_player->pause();
   musicPlaying = false;
 }
 
 void I_ResumeSong (int handle)
 {
   lprintf(LO_INFO, "I_ResumeSong: handle: %d.\n", handle);
+  music_player->resume();
   musicPlaying = true;
 }
 
 void I_StopSong(int handle)
 {
   lprintf(LO_INFO, "I_StopSong: handle: %d.\n", handle);
+  music_player->stop();
   musicPlaying = false;
 }
 
 void I_UnRegisterSong(int handle)
 {
     lprintf(LO_INFO, "I_UnRegisterSong: handle: %d\n", handle);
+    music_player->unregistersong(handle);
 }
 
 int I_RegisterSong(const void *data, size_t len)
 {
   static MUSheader MUSh;
+  MIDI *music_handle = NULL;
+  MIDI mididata;
+  int err, midlen;
+  UBYTE *mid;
+  int result;
+  
   memcpy(&MUSh, data, sizeof(MUSheader));
   MUSh.ScoreLength = doom_wtohs(MUSh.ScoreLength);
   MUSh.ScoreStart  = doom_wtohs(MUSh.ScoreStart);
@@ -627,6 +658,18 @@ int I_RegisterSong(const void *data, size_t len)
   lprintf(LO_INFO, "I_RegisterSong: Length: %d, Start: %d, Channels: %d, SecChannels: %d, Instruments: %d.\n",
                           MUSh.ScoreLength, MUSh.ScoreStart, MUSh.channels, MUSh.SecChannels, MUSh.InstrCnt);
 
+  err = mmus2mid(data, &mididata, 89, 1);
+  if (err != 0) {
+    return 0;
+  }
+  
+  err = MIDIToMidi(&mididata, &mid, &midlen);
+  if (err == 0) {
+    music_handle = music_player->registersong(mid, midlen);
+    free(mid);
+  }
+
+  return music_handle;
 }
 
 int I_RegisterMusic( const char* filename, musicinfo_t *song )
@@ -637,6 +680,5 @@ int I_RegisterMusic( const char* filename, musicinfo_t *song )
 
 void I_SetMusicVolume(int volume)
 {
+  music_player->setvolume(volume);
 }
-
-
