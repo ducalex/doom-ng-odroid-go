@@ -183,7 +183,7 @@ static void odroid_input_task(void *arg)
             //gamepad_state.values[i] = (debounce[i] == 0xff);
             //printf("odroid_input_task: %d=%d (raw=%d)\n", i, gamepad_state.values[i], state.values[i]);
 		}
-
+#if 0
         if (gamepad_state.values[ODROID_INPUT_START])
         {
 
@@ -231,7 +231,7 @@ static void odroid_input_task(void *arg)
                 changed = false;
             }
         }
-
+#endif
         previous_gamepad_state = gamepad_state;
 
         xSemaphoreGive(xSemaphore);

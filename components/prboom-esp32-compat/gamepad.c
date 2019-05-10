@@ -25,6 +25,7 @@
 #include "doomstat.h"
 #include "gamepad.h"
 #include "lprintf.h"
+#include "spi_lcd.h"
 
 #include "psxcontroller.h"
 #include "freertos/FreeRTOS.h"
@@ -71,6 +72,14 @@ static const JsKeyMap keymap[]={
 	{0, NULL},
 };
 int cheatCurrentLevel = 1;
+extern int snd_volume;
+
+void ApplyCheat(char *code)
+{
+	for(int i=0; i<strlen(code); i++){
+		M_FindCheats(code[i]);
+	}
+}
 
 int JoystickRead()
 {
@@ -116,94 +125,78 @@ int JoystickRead()
                 result |= 0x200; //key_strafe
                 result |= 0x100; //key_run
         }
-        
-        if (state.values[ODROID_INPUT_MENU] && state.values[ODROID_INPUT_START] && !previousJoystickState.values[ODROID_INPUT_START]){
-		result |= 0x8000; //key_pause
+
+	if (state.values[ODROID_INPUT_START]) {
+		if (state.values[ODROID_INPUT_UP] && !previousJoystickState.values[ODROID_INPUT_UP]) { // brightness up
+			backlight_set_percent(backlight_get_percent() + 25);
+			doom_printf("Brightness: %d", backlight_get_percent());
+		}
+		if (state.values[ODROID_INPUT_DOWN] && !previousJoystickState.values[ODROID_INPUT_DOWN]) { // brightness down
+			backlight_set_percent(backlight_get_percent() - 25);
+			doom_printf("Brightness: %d", backlight_get_percent());
+		}
+		if (state.values[ODROID_INPUT_RIGHT] && !previousJoystickState.values[ODROID_INPUT_RIGHT]) { // volume up
+			if (++snd_volume > 15) snd_volume = 15;
+			doom_printf("Volume: %d", snd_volume);
+		}
+		if (state.values[ODROID_INPUT_LEFT] && !previousJoystickState.values[ODROID_INPUT_LEFT]) { // volume down
+			if (--snd_volume < 0) snd_volume = 0;
+			doom_printf("Volume: %d", snd_volume);
+		}
+		result |= (0x10 | 0x20 | 0x40 | 0x80); // cancel arrow keys
 	}
 
-	if(state.values[ODROID_INPUT_MENU] && state.values[ODROID_INPUT_UP] && !previousJoystickState.values[ODROID_INPUT_UP]){
-		//menu+up pressed at the same time
-		char *code = "iddqd";
-		int i;
-		for(i=0; i<strlen(code); i++){
-			M_FindCheats(code[i]);
+	if (state.values[ODROID_INPUT_MENU]) {
+		if (state.values[ODROID_INPUT_UP] && !previousJoystickState.values[ODROID_INPUT_UP]) {
+			// Invulnerability
+			ApplyCheat("iddqd");
 		}
-		result = 0;
+		if (state.values[ODROID_INPUT_DOWN] && !previousJoystickState.values[ODROID_INPUT_DOWN]) {
+			//Full megaarmor protection (200%), all weapons, full ammo, and all the keys
+			ApplyCheat("idkfa");
+		}
+		if (state.values[ODROID_INPUT_LEFT] && !previousJoystickState.values[ODROID_INPUT_LEFT]) {
+			//No clipping
+			ApplyCheat("idclip");
+		}
+		if (state.values[ODROID_INPUT_RIGHT] && !previousJoystickState.values[ODROID_INPUT_RIGHT]) {
+			//200% health
+			ApplyCheat("idbeholdh");
+		}
+		result |= (0x10 | 0x20 | 0x40 | 0x80); // cancel arrow keys
 	}
-	if(state.values[ODROID_INPUT_MENU] && state.values[ODROID_INPUT_DOWN] && !previousJoystickState.values[ODROID_INPUT_DOWN]){
-		//menu+down pressed at the same time
-		char *code = "idkfa";
-		int i;
-		for(i=0; i<strlen(code); i++){
-			M_FindCheats(code[i]);
-		}
-		result = 0;
-	}
-	if(state.values[ODROID_INPUT_MENU] && state.values[ODROID_INPUT_LEFT] && !previousJoystickState.values[ODROID_INPUT_LEFT]){
-		//menu+left pressed at the same time
-		char *code = "idclip";
-		int i;
-		for(i=0; i<strlen(code); i++){
-			M_FindCheats(code[i]);
-		}
-		result = 0;
-	}
-	if(state.values[ODROID_INPUT_MENU] && state.values[ODROID_INPUT_RIGHT] && !previousJoystickState.values[ODROID_INPUT_RIGHT]){
-		//menu+right pressed at the same time
-		char *code = "idbeholdh";
-		int i;
-		for(i=0; i<strlen(code); i++){
-			M_FindCheats(code[i]);
-		}
-		result = 0;
-	}
-	if(state.values[ODROID_INPUT_VOLUME] && state.values[ODROID_INPUT_UP] && !previousJoystickState.values[ODROID_INPUT_UP]){
-		//volume+up pressed at the same time
-		char *code = "idbeholdl";
-		int i;
-		for(i=0; i<strlen(code); i++){
-			M_FindCheats(code[i]);
-		}
-		result = 0;
-	}
-	if(state.values[ODROID_INPUT_VOLUME] && state.values[ODROID_INPUT_DOWN] && !previousJoystickState.values[ODROID_INPUT_DOWN]){
-		//volume+down pressed at the same time
-		char *code = "idbeholds";
-		int i;
-		for(i=0; i<strlen(code); i++){
-			M_FindCheats(code[i]);
-		}
-		result = 0;
-	}
-	if(state.values[ODROID_INPUT_VOLUME] && state.values[ODROID_INPUT_LEFT] && !previousJoystickState.values[ODROID_INPUT_LEFT]){
-		//volume+left pressed at the same time
-		char *code = "idbeholdi";
-		int i;
-		for(i=0; i<strlen(code); i++){
-			M_FindCheats(code[i]);
-		}
-		result = 0;
-	}
-	if(state.values[ODROID_INPUT_VOLUME] && state.values[ODROID_INPUT_RIGHT] && !previousJoystickState.values[ODROID_INPUT_RIGHT]){
-		//volume+right pressed at the same time
-		char code[9];
-		if(cheatCurrentLevel == 1 && gamemission == doom){
-			cheatCurrentLevel = 11; //Doom idclev codes are in the form E#M#
-		}
-		lprintf(LO_INFO, "cheatCurrentLevel = %02d\n", cheatCurrentLevel);
-		doom_printf("Cheat level %02d", cheatCurrentLevel);
 
-		sprintf(code, "idclev%02d", cheatCurrentLevel);
-		lprintf(LO_INFO, "idclev code: %s\n", code);
-		int i;
-		for(i=0; i<strlen(code); i++){
-			M_FindCheats(code[i]);
+	if (state.values[ODROID_INPUT_VOLUME]) {
+		if (state.values[ODROID_INPUT_UP] && !previousJoystickState.values[ODROID_INPUT_UP]) {
+			//Temporary light
+			ApplyCheat("idbeholdl");
 		}
-		cheatCurrentLevel++;
-		if(cheatCurrentLevel > 49){
-			cheatCurrentLevel = 1; 
+		if (state.values[ODROID_INPUT_DOWN] && !previousJoystickState.values[ODROID_INPUT_DOWN]) {
+			//Temporary berserk
+			ApplyCheat("idbeholds");
 		}
-		result = 0;
+		if (state.values[ODROID_INPUT_LEFT] && !previousJoystickState.values[ODROID_INPUT_LEFT]) {
+			//Temporary invisibility
+			ApplyCheat("idbeholdi");
+		}
+		if (state.values[ODROID_INPUT_RIGHT] && !previousJoystickState.values[ODROID_INPUT_RIGHT]) {
+			//Warp to different levels
+			char code[9];
+			if(cheatCurrentLevel == 1 && gamemission == doom){
+				cheatCurrentLevel = 11; //Doom idclev codes are in the form E#M#
+			}
+			lprintf(LO_INFO, "cheatCurrentLevel = %02d\n", cheatCurrentLevel);
+			doom_printf("Cheat level %02d", cheatCurrentLevel);
+
+			sprintf(code, "idclev%02d", cheatCurrentLevel);
+			lprintf(LO_INFO, "idclev code: %s\n", code);
+			ApplyCheat(code);
+			cheatCurrentLevel++;
+			if(cheatCurrentLevel > 49){
+				cheatCurrentLevel = 1; 
+			}
+		}
+		result |= (0x10 | 0x20 | 0x40 | 0x80); // cancel arrow keys
 	}
 
 	previousJoystickState = state;

@@ -65,6 +65,7 @@ bool audioStarted = false;
 int snd_card = 0;
 int mus_card = 0;
 int snd_samplerate = 0;
+int snd_volume = 8; // 0-15 like snd_SfxVolume and snd_MusicVolume
 
 int channelsOut = 1;
 
@@ -303,7 +304,6 @@ void I_UpdateSoundParams(int handle, int volume, int seperation, int pitch)
   //  the menu/config file setting
   //  to the state variable used in
   //  the mixing.
-  snd_SfxVolume = volume;
 }
 
 
@@ -449,13 +449,13 @@ void IRAM_ATTR I_UpdateSound( void )
       
       *(audioBuffer++) = DAC1;
 
-      if (totalChannelCount == 0)
+      if (totalChannelCount == 0 || snd_volume == 0)
       {
         *(audioBuffer++) = 0x80;
       }
       else
       {
-        *(audioBuffer++) = (short)(((totalSample / totalChannelCount)) << 8);
+        *(audioBuffer++) = (short)(((totalSample / totalChannelCount / (16-snd_volume))) << 8);
       }
 
       //*rightout = dr;

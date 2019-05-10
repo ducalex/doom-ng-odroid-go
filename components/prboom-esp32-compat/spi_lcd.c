@@ -48,7 +48,7 @@
 //You want this, especially at higher framerates. The 2nd buffer is allocated in iram anyway, so isn't really in the way.
 #define DOUBLE_BUFFER
 
-
+static int BacklightLevel = 75;
 /*
  The LCD needs a bunch of command/argument values to be initialized. They are stored in this struct.
 */
@@ -157,6 +157,30 @@ static void backlight_init()
     
     //ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, DUTY_MAX);
     //ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);    
+
+    //initialize fade service.
+    ledc_fade_func_install(0);
+
+    backlight_percentage_set(BacklightLevel);
+}
+
+short backlight_percentage_get(void)
+{
+    return BacklightLevel;
+}
+
+void backlight_percentage_set(short level)
+{
+    if (level > 100) level = 100;
+    if (level < 10) level = 10;
+    
+    BacklightLevel = level;
+
+    int DUTY_MAX = 0x1fff;
+    int duty = DUTY_MAX * (BacklightLevel * 0.01f);
+
+    ledc_set_fade_with_time(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, duty, 1);
+    ledc_fade_start(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, LEDC_FADE_WAIT_DONE /*LEDC_FADE_NO_WAIT*/);
 }
 
 #endif
@@ -228,7 +252,7 @@ void ili_init(spi_device_handle_t spi)
     }
 
     //Enable backlight
-    backlight_init();
+    spi_lcd_backlight_init();
 }
 
 
