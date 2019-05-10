@@ -61,6 +61,7 @@
 
 //SemaphoreHandle_t dmaChannel2Sem = NULL;
 bool audioStarted = false;
+bool musicPlaying = false;
 
 int snd_card = 0;
 int mus_card = 0;
@@ -112,6 +113,16 @@ int		channelids[NUM_MIX_CHANNELS];
 // Hardware left and right channel volume lookup.
 //int		channelleftvol_lookup[NUM_MIX_CHANNELS];
 //int		channelrightvol_lookup[NUM_MIX_CHANNELS];
+
+typedef struct
+{
+  char        ID[4];            // identifier "MUS"0x1A
+  UWORD       ScoreLength;      // length of music portion
+  UWORD       ScoreStart;       // offset of music portion
+  UWORD       channels;         // count of primary channels
+  UWORD       SecChannels;      // count of secondary channels
+  UWORD       InstrCnt;         // number of instruments
+} PACKEDATTR MUSheader;
 
 //
 // This function loads the sound data from the WAD lump,
@@ -564,42 +575,64 @@ void I_InitSound(void)
 
 void I_ShutdownMusic(void)
 {
+  lprintf(LO_INFO, "I_ShutdownMusic: called\n");
 }
 
 void I_InitMusic(void)
 {
+  lprintf(LO_INFO, "I_InitMusic: called\n");
 }
 
 void I_PlaySong(int handle, int looping)
 {
+  lprintf(LO_INFO, "I_PlaySong: %d %d\n", handle, looping);
+  musicPlaying = true;
 }
 
 extern int mus_pause_opt; // From m_misc.c
 
 void I_PauseSong (int handle)
 {
+  lprintf(LO_INFO, "I_PauseSong: handle: %d.\n", handle);
+  musicPlaying = false;
 }
 
 void I_ResumeSong (int handle)
 {
+  lprintf(LO_INFO, "I_ResumeSong: handle: %d.\n", handle);
+  musicPlaying = true;
 }
 
 void I_StopSong(int handle)
 {
+  lprintf(LO_INFO, "I_StopSong: handle: %d.\n", handle);
+  musicPlaying = false;
 }
 
 void I_UnRegisterSong(int handle)
 {
+    lprintf(LO_INFO, "I_UnRegisterSong: handle: %d\n", handle);
 }
 
 int I_RegisterSong(const void *data, size_t len)
 {
-  return (0);
+  static MUSheader MUSh;
+  memcpy(&MUSh, data, sizeof(MUSheader));
+  MUSh.ScoreLength = doom_wtohs(MUSh.ScoreLength);
+  MUSh.ScoreStart  = doom_wtohs(MUSh.ScoreStart);
+  MUSh.channels    = doom_wtohs(MUSh.channels);
+  MUSh.SecChannels = doom_wtohs(MUSh.SecChannels);
+  MUSh.InstrCnt    = doom_wtohs(MUSh.InstrCnt);
+
+  lprintf(LO_INFO, "I_RegisterSong: Length: %d, Start: %d, Channels: %d, SecChannels: %d, Instruments: %d.\n",
+                          MUSh.ScoreLength, MUSh.ScoreStart, MUSh.channels, MUSh.SecChannels, MUSh.InstrCnt);
+
 }
 
 int I_RegisterMusic( const char* filename, musicinfo_t *song )
 {
-    return 1;
+  lprintf(LO_INFO, "I_RegisterMusic: %s\n", filename);
+  return 1;
 }
 
 void I_SetMusicVolume(int volume)

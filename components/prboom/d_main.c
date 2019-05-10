@@ -1347,7 +1347,7 @@ static void D_DoomMainSetup(void)
     nosfxparm   = nosound || M_CheckParm("-nosfx");
   }
 	//Hardcode music and sound disabled -- JD
-    nomusicparm=true;
+    //nomusicparm=true;
     //nosfxparm=true;
   //jff end of sound/music command line parms
 
