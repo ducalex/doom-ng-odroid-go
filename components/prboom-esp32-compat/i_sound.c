@@ -591,6 +591,12 @@ void I_InitSound(void)
 }
 
 
+size_t total_free_bytes()
+{
+  multi_heap_info_t info;
+  heap_caps_get_info(&info, MALLOC_CAP_DEFAULT);
+  return info.total_free_bytes;
+}
 
 
 void I_ShutdownMusic(void)
@@ -635,12 +641,18 @@ void I_StopSong(int handle)
 
 void I_UnRegisterSong(int handle)
 {
+  size_t start_mem = total_free_bytes();
+
     lprintf(LO_INFO, "I_UnRegisterSong: handle: %d\n", handle);
     music_player->unregistersong(handle);
+
+  lprintf(LO_INFO, "I_UnRegisterSong: mem freed: %d\n", total_free_bytes() - start_mem);
 }
 
 int I_RegisterSong(const void *data, size_t len)
 {
+  size_t start_mem = total_free_bytes();
+
   static MUSheader MUSh;
   MIDI *music_handle = NULL;
   MIDI mididata;
@@ -662,12 +674,15 @@ int I_RegisterSong(const void *data, size_t len)
   if (err != 0) {
     return 0;
   }
-  
+
   err = MIDIToMidi(&mididata, &mid, &midlen);
   if (err == 0) {
     music_handle = music_player->registersong(mid, midlen);
+    free_mididata(&mididata);
     free(mid);
   }
+
+  lprintf(LO_INFO, "I_RegisterSong: mem used: %d\n", start_mem - total_free_bytes());
 
   return music_handle;
 }
