@@ -26,6 +26,7 @@
 
 #include "sdkconfig.h"
 
+#include "spi_lcd.h"
 
 #if 1
 #define PIN_NUM_MISO 19
@@ -252,7 +253,7 @@ void ili_init(spi_device_handle_t spi)
     }
 
     //Enable backlight
-    spi_lcd_backlight_init();
+    backlight_init();
 }
 
 

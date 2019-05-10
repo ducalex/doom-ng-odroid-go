@@ -128,12 +128,12 @@ int JoystickRead()
 
 	if (state.values[ODROID_INPUT_START]) {
 		if (state.values[ODROID_INPUT_UP] && !previousJoystickState.values[ODROID_INPUT_UP]) { // brightness up
-			backlight_set_percent(backlight_get_percent() + 25);
-			doom_printf("Brightness: %d", backlight_get_percent());
+			backlight_percentage_set(backlight_percentage_get() + 25);
+			doom_printf("Brightness: %d", backlight_percentage_get());
 		}
 		if (state.values[ODROID_INPUT_DOWN] && !previousJoystickState.values[ODROID_INPUT_DOWN]) { // brightness down
-			backlight_set_percent(backlight_get_percent() - 25);
-			doom_printf("Brightness: %d", backlight_get_percent());
+			backlight_percentage_set(backlight_percentage_get() - 25);
+			doom_printf("Brightness: %d", backlight_percentage_get());
 		}
 		if (state.values[ODROID_INPUT_RIGHT] && !previousJoystickState.values[ODROID_INPUT_RIGHT]) { // volume up
 			if (++snd_volume > 15) snd_volume = 15;
