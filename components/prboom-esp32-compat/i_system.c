@@ -63,7 +63,6 @@
 #include "lprintf.h"
 #include "doomtype.h"
 #include "doomdef.h"
-#include "lprintf.h"
 #include "m_fixed.h"
 #include "r_fps.h"
 #include "i_system.h"
@@ -71,15 +70,11 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "driver/i2s.h"
 
-#include "esp_partition.h"
-#include "esp_spi_flash.h"
-
-#include <stdio.h>
 #include <string.h>
 #include <sys/unistd.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_vfs_fat.h"
@@ -92,22 +87,14 @@
 #ifdef __GNUG__
 #pragma implementation "i_system.h"
 #endif
-#include "i_system.h"
 
-#include <sys/time.h>
 
 #define MODE_SPI 1
-//#define PIN_NUM_MISO 2 //4
-//#define PIN_NUM_MOSI 13
-//#define PIN_NUM_CLK  14
-//#define PIN_NUM_CS   15
 
 #define PIN_NUM_MISO 19
 #define PIN_NUM_MOSI 23
 #define PIN_NUM_CLK  18
 #define PIN_NUM_CS 22
-
-extern SemaphoreHandle_t dispLock;
 
 /*
 SDMMC pin configuration
@@ -117,42 +104,52 @@ MISO = 2
 CLK = 14
 */
 
-
-int realtime=0;
+extern SemaphoreHandle_t dispLock;
 //SemaphoreHandle_t dmaChannel2Sem;
 
-void I_uSleep(unsigned long usecs)
+#define MAX_OPEN_FILES 32
+
+typedef struct {
+	FILE* file;
+	int offset;
+	int size;
+	char name[12];
+} FileDesc;
+
+static FileDesc fds[MAX_OPEN_FILES];
+
+static bool init_SD = false;
+static int nextHandle = 0;
+static int displaytime = 0;
+
+typedef struct {
+	int ifd;
+	void *addr;
+	int offset;
+	size_t len;
+	int used;
+} MmapHandle;
+
+#define NO_MMAP_HANDLES 128
+static MmapHandle mmapHandle[NO_MMAP_HANDLES];
+
+
+
+static unsigned long getMsTicks()
 {
-	vTaskDelay(usecs/1000);
+  return esp_timer_get_time() / 1000;
 }
 
-static unsigned long getMsTicks() {
-  //struct timeval tv;
-  //struct timezone tz;
-  unsigned long thistimereply;
-
-  //gettimeofday(&tv, &tz);
-  unsigned long now = esp_timer_get_time() / 1000;
-  //convert to ms
-  //unsigned long now = tv.tv_usec/1000+tv.tv_sec*1000;
-  return now;
-}
-
-int I_GetTime_RealTime (void)
+int I_GetTime_RealTime(void)
 {
-  unsigned long thistimereply;
-  thistimereply = ((esp_timer_get_time() * TICRATE) / 1000000);
-  return thistimereply;
+  return ((esp_timer_get_time() * TICRATE) / 1000000);
 
 }
 
-const int displaytime=0;
-
-fixed_t I_GetTimeFrac (void)
+fixed_t I_GetTimeFrac(void)
 {
   unsigned long now;
   fixed_t frac;
-
 
   now = getMsTicks();
 
@@ -168,7 +165,6 @@ fixed_t I_GetTimeFrac (void)
     return frac;
   }
 }
-
 
 void I_GetTime_SaveMS(void)
 {
@@ -196,10 +192,28 @@ const char* I_SigString(char* buf, size_t sz, int signum)
   return buf;
 }
 
-extern unsigned char *doom1waddata;
-static bool init_SD = false;
+void I_uSleep(unsigned long usecs)
+{
+	vTaskDelay(usecs/1000);
+}
 
-void Init_SD()
+void I_SetAffinityMask(void)
+{
+}
+
+const char *I_DoomExeDir(void)
+{
+  return "/sdcard/roms/doom";
+}
+
+const char *I_DoomSaveDir(void)
+{
+  return "/sdcard/odroid/data/doom";
+}
+
+
+
+static void Init_SD()
 {
 #if MODE_SPI == 1
 	xSemaphoreTake(dispLock, portMAX_DELAY);
@@ -247,141 +261,125 @@ void Init_SD()
 	xSemaphoreGive(dispLock);
 }
 
-typedef struct {
-	//const esp_partition_t* part;
-	FILE* file;
-	int offset;
-	int size;
-	char name[12];
-} FileDesc;
 
-static FileDesc fds[32];
-static const char fileName[] = "DOOM.WAD";
+int I_Open(const char *fname, int flags) {
+	lprintf(LO_INFO, "I_Open: Opening File: %s\n", fname);
 
-int I_Open(const char *wad, int flags) {
-	char fname[12];
-	strcpy(fname, wad);
-	memcpy(fname+(strlen(fname)-4), ".WAD", 4);
-	lprintf(LO_INFO, "I_Open: Opening File: %s (as %s)\n", wad, fname);
-
-	if(init_SD == false)
+	if (init_SD == false)
 		Init_SD();
 	
-	int x=0;
-	while (fds[x].file!=NULL && strcmp(fds[x].name ,fname)!=0 && x < 32) 
+	int x = 0;
+	while (x < MAX_OPEN_FILES && fds[x].file != NULL && strcmp(fds[x].name, fname) != 0)
 		x++;
-	lprintf(LO_INFO, "I_Open: Got handle: %d\n", x);
 
-	if(x == 31 && fds[x].file!=NULL)
+	if (x == MAX_OPEN_FILES)
 	{
 		lprintf(LO_INFO, "I_Open: Too many handles open\n");
 		return -1;
 	}
 
-	if(strcmp(fds[x].name, fname) == 0)
+	if (strcmp(fds[x].name, fname) == 0)
 	{
-		lprintf(LO_INFO, "I_Open: File already open\n");
+		lprintf(LO_INFO, "I_Open: File already open at handle %d\n", x);
 		xSemaphoreTake(dispLock, portMAX_DELAY);
 		rewind(fds[x].file);
 		xSemaphoreGive(dispLock);
 		return x;
 	}
 
-	if (strcmp(fname, fileName)==0) {
-		printf("Trying to load %s\n", fileName);
-		char filepath[256];
-		strcpy(filepath, I_DoomExeDir());
-		strcat(filepath, "/doom.wad");
-		printf("Looking at path %s\n", filepath);
-		xSemaphoreTake(dispLock, portMAX_DELAY);
-		fds[x].file=fopen(filepath, "rb");
-		xSemaphoreGive(dispLock);
-	} else if(strcmp("prboom.WAD", fname)==0) {
-		char filepath[256];
-		strcpy(filepath, I_DoomExeDir());
-		strcat(filepath, "/prboom.wad");
-		
-		xSemaphoreTake(dispLock, portMAX_DELAY);
-		fds[x].file=fopen(filepath, "rb");
-		xSemaphoreGive(dispLock);
-	} 
-	if(fds[x].file) 
-	{ 	
-		fds[x].offset=0;
-		//sprintf(fds[x].name,"%s",wad);
+	lprintf(LO_INFO, "I_Open: Got handle: %d\n", x);
+
+	char filepath[256];
+
+	sprintf(filepath, "%s/%s", I_DoomExeDir(), fname);
+	printf("Trying to load %s\n", filepath);
+
+	xSemaphoreTake(dispLock, portMAX_DELAY);
+	fds[x].file = fopen(filepath, "rb");
+	if (fds[x].file) {
 		strcpy(fds[x].name, fname);
-		//struct stat fileStat;
-		//stat("/sdcard/doom1.wad", &fileStat);
-		//fds[x].size = fileStat.st_size;
-
-		xSemaphoreTake(dispLock, portMAX_DELAY);
 		fseek(fds[x].file, 0L, SEEK_END);
-		fds[x].size=ftell(fds[x].file);
+		fds[x].size = ftell(fds[x].file);
+		fds[x].offset = 0;
 		rewind(fds[x].file);
-		xSemaphoreGive(dispLock);
-
 		lprintf(LO_INFO, "Size: %d\n", fds[x].size);
-	} else {
+	}
+	xSemaphoreGive(dispLock);
+
+	if (!fds[x].file) {
 		lprintf(LO_INFO, "I_Open: open %s failed\n", fname);
 		return -1;
 	}
+
 	return x;
 }
 
+
 int I_Lseek(int ifd, off_t offset, int whence) {
-//	lprintf(LO_INFO, "I_Lseek: Seeking %d.\n", (int)offset);
-	if (whence==SEEK_SET) {
-		fds[ifd].offset=offset;
-
-		xSemaphoreTake(dispLock, portMAX_DELAY);
-		fseek(fds[ifd].file, offset, SEEK_SET);
-		xSemaphoreGive(dispLock);
-	} else if (whence==SEEK_CUR) {
-		fds[ifd].offset+=offset;
-
-		xSemaphoreTake(dispLock, portMAX_DELAY);
-		fseek(fds[ifd].file, offset, SEEK_CUR);
-		xSemaphoreGive(dispLock);
-	} else if (whence==SEEK_END) {
+	if (whence == SEEK_END) {
 		lprintf(LO_INFO, "I_Lseek: SEEK_END unimplemented\n");
+	} else {
+		xSemaphoreTake(dispLock, portMAX_DELAY);
+		fseek(fds[ifd].file, offset, whence);
+		fds[ifd].offset = ftell(fds[ifd].file);
+		xSemaphoreGive(dispLock);
 	}
+	
 	return fds[ifd].offset;
 }
+
 
 int I_Filelength(int ifd)
 {
 	return fds[ifd].size;
 }
 
-void I_Close(int fd) {
+
+void I_Read(int ifd, void* vbuf, size_t sz)
+{
+	int readBytes = 0;
+	
+	for (int i = 0; i < 20; i++) {
+		xSemaphoreTake(dispLock, portMAX_DELAY);
+		readBytes = fread(vbuf, sz, 1, fds[ifd].file);
+		xSemaphoreGive(dispLock);
+		
+		if (readBytes == 1) {
+			return;
+		}
+		
+		lprintf(LO_INFO, "Error Reading %d bytes\n", (int)sz);
+	}
+
+	I_Error("I_Read: Error Reading %d bytes after 20 tries", (int)sz);
+}
+
+
+void I_Close(int fd)
+{
 	lprintf(LO_INFO, "I_Open: Closing File: %s\n", fds[fd].name);
-	sprintf(fds[fd].name, " ");
 	
 	xSemaphoreTake(dispLock, portMAX_DELAY);
 	fclose(fds[fd].file);
 	xSemaphoreGive(dispLock);
 	
-	fds[fd].file=NULL;
-	//esp_vfs_fat_sdmmc_unmount();
+	fds[fd].file = NULL;
 }
 
 
-typedef struct {
-//	spi_flash_mmap_handle_t handle;
-	int ifd;
-	void *addr;
-	int offset;
-	size_t len;
-	int used;
-} MmapHandle;
+char* I_FindFile(const char* wfname, const char* ext)
+{
+  char *p;
+  p = malloc(strlen(wfname)+4);
+  sprintf(p, "%s.%s", wfname, ext);
+  return NULL;
+}
 
-#define NO_MMAP_HANDLES 128
-static MmapHandle mmapHandle[NO_MMAP_HANDLES];
 
-static int nextHandle=0;
 
-static int getFreeHandle() {
-//	lprintf(LO_INFO, "getFreeHandle: Get free handle... ");
+static int getFreeMMapHandle()
+{
+//	lprintf(LO_INFO, "getFreeMMapHandle: Get free handle... ");
 	int n=NO_MMAP_HANDLES;
 	while (mmapHandle[nextHandle].used!=0 && n!=0) {
 		nextHandle++;
@@ -389,7 +387,7 @@ static int getFreeHandle() {
 		n--;
 	}
 	if (n==0) {
-		lprintf(LO_ERROR, "getFreeHandle: More mmaps than NO_MMAP_HANDLES!\n");
+		lprintf(LO_ERROR, "getFreeMMapHandle: More mmaps than NO_MMAP_HANDLES!\n");
 		exit(0);
 	}
 	
@@ -406,7 +404,9 @@ static int getFreeHandle() {
 	return r;
 }
 
-void freeUnusedMmaps(void) {
+
+void freeUnusedMmaps(void)
+{
 	lprintf(LO_INFO, "freeUnusedMmaps...\n");
 	for (int i=0; i<NO_MMAP_HANDLES; i++) {
 		//Check if handle is not in use but is mapped.
@@ -421,39 +421,38 @@ void freeUnusedMmaps(void) {
 }
 
 
-void *I_Mmap(void *addr, size_t length, int prot, int flags, int ifd, off_t offset) {
-//	lprintf(LO_INFO, "I_Mmap: ifd %d, length: %d, offset: %d\n", ifd, (int)length, (int)offset);
-	
+void *I_Mmap(void *addr, size_t length, int prot, int flags, int ifd, off_t offset)
+{
 	int i;
 	esp_err_t err;
-	void *retaddr=NULL;
+	void *retaddr = NULL;
 
-	for (i=0; i<NO_MMAP_HANDLES; i++) {
-		if (mmapHandle[i].offset==offset && mmapHandle[i].len==length && mmapHandle[i].ifd==ifd) {
+	for (i = 0; i < NO_MMAP_HANDLES; i++) {
+		if (mmapHandle[i].offset == offset && mmapHandle[i].len == length && mmapHandle[i].ifd == ifd) {
 			mmapHandle[i].used++;
 			return mmapHandle[i].addr;
 		}
 	}
 
-	i=getFreeHandle();
+	i = getFreeMMapHandle();
 
 	retaddr = malloc(length);
-	if(!retaddr)
+	if (!retaddr)
 	{
 		lprintf(LO_ERROR, "I_Mmap: No free address space. Cleaning up unused cached mmaps...\n");
 		freeUnusedMmaps();
 		retaddr = malloc(length);
 	}
 
-	if(retaddr)
+	if (retaddr)
 	{
 		I_Lseek(ifd, offset, SEEK_SET);
 		I_Read(ifd, retaddr, length);
-		mmapHandle[i].addr=retaddr;
-		mmapHandle[i].len=length;
-		mmapHandle[i].used=1;
-		mmapHandle[i].offset=offset;
-		mmapHandle[i].ifd=ifd;
+		mmapHandle[i].addr = retaddr;
+		mmapHandle[i].len = length;
+		mmapHandle[i].used = 1;
+		mmapHandle[i].offset = offset;
+		mmapHandle[i].ifd = ifd;
 	} else {
 		lprintf(LO_ERROR, "I_Mmap: Can't mmap offset: %d (len=%d)!\n", (int)offset, length);
 		return NULL;
@@ -463,71 +462,15 @@ void *I_Mmap(void *addr, size_t length, int prot, int flags, int ifd, off_t offs
 }
 
 
-int I_Munmap(void *addr, size_t length) {
-	int i;
-	for (i=0; i<NO_MMAP_HANDLES; i++) {
-		if (mmapHandle[i].addr==addr && mmapHandle[i].len==length/* && mmapHandle[i].ifd==ifd*/) break;
-	}
-	if (i==NO_MMAP_HANDLES) {
-		lprintf(LO_ERROR, "I_Mmap: Freeing non-mmapped address/len combo!\n");
-		exit(0);
-	}
-//	lprintf(LO_INFO, "I_Mmap: freeing handle %d\n", i);
-	mmapHandle[i].used--;
-	return 0;
-}
-
-
-
-void I_Read(int ifd, void* vbuf, size_t sz)
+int I_Munmap(void *addr, size_t length)
 {
-	int readBytes = 0;
-	//lprintf(LO_INFO, "I_Read: Reading %d bytes... ", (int)sz);
-    for(int i = 0; i < 20; i++)
-	{
-		xSemaphoreTake(dispLock, portMAX_DELAY);
-		readBytes = fread(vbuf, sz, 1, fds[ifd].file);
-		xSemaphoreGive(dispLock);
-
-		if( readBytes == 1)//(int)sz)
-		{
-			return;
-		}	
-		lprintf(LO_INFO, "Error Reading %d bytes\n", (int)sz);
-		//vTaskDelay(300 / portTICK_RATE_MS);
+	for (int i = 0; i < NO_MMAP_HANDLES; i++) {
+		if (mmapHandle[i].addr == addr && mmapHandle[i].len == length) {
+			mmapHandle[i].used--;
+			return 0;
+		}
 	}
 
-	I_Error("I_Read: Error Reading %d bytes after 20 tries", (int)sz);
+	lprintf(LO_ERROR, "I_Mmap: Freeing non-mmapped address/len combo!\n");
+	exit(0);
 }
-
-const char *I_DoomExeDir(void)
-{
-  return "/sdcard/roms/doom";
-}
-
-const char *I_DoomSaveDir(void)
-{
-  return "/sdcard/odroid/data/doom";
-}
-
-
-char* I_FindFile(const char* wfname, const char* ext)
-{
-  char *p;
-  p = malloc(strlen(wfname)+4);
-  sprintf(p, "%s.%s", wfname, ext);
-  return NULL;
-}
-
-void I_SetAffinityMask(void)
-{
-}
-
-/*
-int access(const char *path, int atype) {
-    return 1;
-}
-*/
-
-
-
