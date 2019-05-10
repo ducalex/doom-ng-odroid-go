@@ -58,6 +58,7 @@
 #include "g_game.h"
 #include "r_demo.h"
 #include "r_fps.h"
+#include "esp_heap_caps.h"
 
 // Fineangles in the SCREENWIDTH wide window.
 #define FIELDOFVIEW 2048
@@ -559,11 +560,16 @@ static void R_ShowStats(void)
   int now = I_GetTime();
 
   if (now - showtime > 35) {
+    multi_heap_info_t info;
+    heap_caps_get_info(&info, MALLOC_CAP_DEFAULT);
+    doom_printf("fps: %d mem: %.0fK", (35*KEEPTIMES)/(now - keeptime[0]), (float)info.total_free_bytes / 1024);
+    /*
     doom_printf((V_GetMode() == VID_MODEGL)
                 ?"Frame rate %d fps\nWalls %d, Flats %d, Sprites %d"
                 :"Frame rate %d fps\nSegs %d, Visplanes %d, Sprites %d",
     (35*KEEPTIMES)/(now - keeptime[0]), rendered_segs,
     rendered_visplanes, rendered_vissprites);
+    */
     showtime = now;
   }
   memmove(keeptime, keeptime+1, sizeof(keeptime[0]) * (KEEPTIMES-1));
