@@ -95,9 +95,7 @@ int JoystickRead()
 {
 	if (!input_gamepad_initialized) return 0;
 
-	xSemaphoreTake(xSemaphore, portMAX_DELAY);
 	odroid_gamepad_state state = gamepad_state;
-	xSemaphoreGive(xSemaphore);
 
 	int result = 0;
 
@@ -263,6 +261,8 @@ odroid_gamepad_state odroid_input_read_raw()
 
 static void odroid_input_task(void *arg)
 {
+	lprintf(LO_INFO, "gamepad: Input task started.\n");
+
     // Initialize state
     for(int i = 0; i < ODROID_INPUT_MAX; ++i)
     {
