@@ -27,8 +27,8 @@
 #include "lprintf.h"
 #include "spi_lcd.h"
 
-#include "psxcontroller.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include <driver/adc.h>

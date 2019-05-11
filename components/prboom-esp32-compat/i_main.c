@@ -62,7 +62,6 @@
 #include <stdlib.h>
 
 //include support for odroid-go
-#include "../odroid/odroid_sdcard.h"
 #include "../odroid/odroid_system.h"
 
 /* Most of the following has been rewritten by Lee Killough
