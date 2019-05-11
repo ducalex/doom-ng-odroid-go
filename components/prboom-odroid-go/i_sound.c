@@ -63,6 +63,8 @@
 #include "d_main.h"
 #include "dma.h"
 
+#include "odroid_util.h"
+
 const music_player_t *music_player = &opl_synth_player;
 
 //SemaphoreHandle_t dmaChannel2Sem = NULL;
@@ -588,14 +590,6 @@ void I_InitSound(void)
 
   xTaskCreatePinnedToCore(&updateTask, "updateTask", 1000, NULL, 6, NULL, 1);
   
-}
-
-
-size_t total_free_bytes()
-{
-  multi_heap_info_t info;
-  heap_caps_get_info(&info, MALLOC_CAP_DEFAULT);
-  return info.total_free_bytes;
 }
 
 
