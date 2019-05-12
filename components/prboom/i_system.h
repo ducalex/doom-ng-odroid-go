@@ -83,6 +83,8 @@ int I_Lseek(int fd, off_t offset, int whence);
 int I_Open(const char *wad, int flags);
 void I_Close(int fd);
 
+void I_BeginDiskAccess(void);
+void I_EndDiskAccess(void);
 
 //HACK mmap support, w_mmap.c
 #define PROT_READ 1

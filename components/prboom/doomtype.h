@@ -92,7 +92,7 @@ typedef unsigned __int64 uint_64_t;
 
 //esp32
 #undef PATH_MAX
-#define PATH_MAX 32
+#define PATH_MAX 48
 
 
 /* CPhipps - use limits.h instead of depreciated values.h */

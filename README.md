@@ -1,6 +1,13 @@
 # Description
 
-This is an improvement of [doom-ng-odroid-go](https://github.com/mad-ady/doom-ng-odroid-go/) which itself is an improvement of [doom-odroid-go](https://github.com/OtherCrashOverride/doom-odroid-go/). It adds full sound support and brightness/volume controls.
+This is an improvement of [doom-ng-odroid-go](https://github.com/mad-ady/doom-ng-odroid-go/) which itself is an improvement of [doom-odroid-go](https://github.com/OtherCrashOverride/doom-odroid-go/).
+
+## New features
+
+- Full sound support
+- Save games
+- Brightness controls
+- Volume controls
 
 
 # Usage

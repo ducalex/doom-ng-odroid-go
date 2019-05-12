@@ -1710,6 +1710,8 @@ void G_SaveGameName(char *name, size_t size, int slot, boolean demoplayback)
 
 static void G_DoSaveGame (boolean menu)
 {
+  lprintf(LO_INFO, "G_DoSaveGame... \n");
+
   char name[PATH_MAX+1];
   char name2[VERSIONSIZE];
   char *description;

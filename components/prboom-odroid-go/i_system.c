@@ -314,6 +314,22 @@ char* I_FindFile(const char* wfname, const char* ext)
 }
 
 
+void I_BeginDiskAccess(void)
+{
+	lprintf(LO_INFO, "I_BeginDiskAccess: locking display\n");
+	xSemaphoreTake(dispLock, portMAX_DELAY);
+	gpio_set_level(GPIO_NUM_2, 1);
+}
+
+
+void I_EndDiskAccess(void)
+{
+	lprintf(LO_INFO, "I_EndDiskAccess: unlocking display\n");
+	xSemaphoreGive(dispLock);
+	gpio_set_level(GPIO_NUM_2, 0);
+}
+
+
 
 static int getFreeMMapHandle()
 {
