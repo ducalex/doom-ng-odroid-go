@@ -71,10 +71,6 @@
 #include "r_demo.h"
 #include "r_fps.h"
 
-/* cph - disk icon not implemented */
-static inline void I_BeginRead(void) {}
-static inline void I_EndRead(void) {}
-
 /*
  * M_WriteFile
  *
@@ -83,20 +79,20 @@ static inline void I_EndRead(void) {}
 
 boolean M_WriteFile(char const *name, void *source, int length)
 {
+  I_BeginDiskAccess();
+
   FILE *fp;
-  return 0;
   errno = 0;
 
-  if (!(fp = fopen(name, "wb")))       // Try opening file
-    return 0;                          // Could not open file for writing
-
-  I_BeginRead();                       // Disk icon on
-  length = fwrite(source, 1, length, fp) == (size_t)length;   // Write data
-  fclose(fp);
-  I_EndRead();                         // Disk icon off
+  if (fp = fopen(name, "wb")) {      // Try opening file
+    length = fwrite(source, 1, length, fp) == (size_t)length;   // Write data
+    fclose(fp);
+  }
 
   if (!length)                         // Remove partially written file
     remove(name);
+
+  I_EndDiskAccess();
 
   return length;
 }
@@ -109,31 +105,32 @@ boolean M_WriteFile(char const *name, void *source, int length)
 
 int M_ReadFile(char const *name, byte **buffer)
 {
+  I_BeginDiskAccess();
+
   FILE *fp;
+  size_t length, read;
+  int ret = -1;
 
-  lprintf(LO_WARN, "Attempting M_ReadFile %s\n", name);
-  return -1;
-  if ((fp = fopen(name, "rb")))
-    {
-      size_t length;
-
-      I_BeginRead();
+  if (fp = fopen(name, "rb")) {
       fseek(fp, 0, SEEK_END);
       length = ftell(fp);
       fseek(fp, 0, SEEK_SET);
       *buffer = Z_Malloc(length, PU_STATIC, 0);
-      if (fread(*buffer, 1, length, fp) == length)
-        {
-          fclose(fp);
-          I_EndRead();
-          return length;
-        }
-      fclose(fp);
-    }
+      read = fread(*buffer, 1, length, fp);
 
-  /* cph 2002/08/10 - this used to return 0 on error, but that's ambiguous,
-   * because we could have a legit 0-length file. So make it -1. */
-  return -1;
+      if (read != length) {
+          lprintf(LO_INFO, "M_ReadFile: Length mismatch (Got %d, expected %d)\n", read, length);
+          Z_Free(*buffer);
+      } else
+          ret = read;
+
+      fclose(fp);
+  } else {
+    lprintf(LO_INFO, "M_ReadFile: failed to open %s\n", name);
+  }
+
+  I_EndDiskAccess();
+  return ret;
 }
 
 //

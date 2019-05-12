@@ -835,15 +835,24 @@ menu_t SaveDef =
 //
 void M_ReadSaveStrings(void)
 {
-  int i;
-
-  for (i = 0 ; i < load_end ; i++) {
+  I_BeginDiskAccess();
+  for (int i = 0; i < load_end; i++) {
     char name[PATH_MAX+1];    // killough 3/22/98
     FILE *fp;  // killough 11/98: change to use stdio
 
     /* killough 3/22/98
      * cph - add not-demoplayback parameter */
     G_SaveGameName(name,sizeof(name),i,false);
+
+    if (fp = fopen(name, "rb")) {
+      sprintf(&savegamestrings[i], "Slot %d", i);
+      fclose(fp);
+      LoadMenue[i].status = 1;
+    } else {
+      sprintf(&savegamestrings[i], "Slot %d (empty)", i);
+      LoadMenue[i].status = 0;
+    }
+    /*
     fp=NULL;
     //fp = fopen(name,"rb");
     if (!fp) {   // Ty 03/27/98 - externalized:
@@ -854,7 +863,9 @@ void M_ReadSaveStrings(void)
     fread(&savegamestrings[i], SAVESTRINGSIZE, 1, fp);
     fclose(fp);
     LoadMenue[i].status = 1;
+    */
   }
+  I_EndDiskAccess();
 }
 
 //
@@ -899,10 +910,12 @@ static void M_DoSave(int slot)
 void M_SaveSelect(int choice)
 {
   // we are going to be intercepting all chars
-  saveStringEnter = 1;
+  //saveStringEnter = 1;
 
   saveSlot = choice;
   strcpy(saveOldString,savegamestrings[choice]);
+   M_DoSave(saveSlot);
+   return;
   if (!strcmp(savegamestrings[choice],s_EMPTYSTRING)) // Ty 03/27/98 - externalized
     savegamestrings[choice][0] = 0;
   saveCharIndex = strlen(savegamestrings[choice]);
@@ -4174,7 +4187,7 @@ boolean M_Responder (event_t* ev) {
     return false; // we can't use the event here
 
   // Save Game string input
-
+  /*
   if (saveStringEnter) {
     lprintf(LO_INFO, "M_Responder: saveStringEnter is true\n");
     if (ch == key_menu_backspace)                            // phares 3/7/98
@@ -4214,6 +4227,7 @@ boolean M_Responder (event_t* ev) {
     lprintf(LO_INFO, "M_Responder: exiting with return true\n");
     return true;
   }
+  */
 
   // Take care of any messages that need input
 

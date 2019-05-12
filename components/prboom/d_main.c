@@ -797,7 +797,7 @@ static void IdentifyVersion (void)
     if (p != NULL)
       if (strlen(p) > PATH_MAX-12) p = NULL;
 
-    strcpy(basesavegame,(p == NULL) ? I_DoomExeDir() : p);
+    strcpy(basesavegame,(p == NULL) ? I_DoomSaveDir() : p);
   }
   if ((i=M_CheckParm("-save")) && i<myargc-1) //jff 3/24/98 if -save present
   {
