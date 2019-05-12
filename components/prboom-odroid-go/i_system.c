@@ -88,35 +88,13 @@
 #pragma implementation "i_system.h"
 #endif
 
-
-#define MODE_SPI 1
-
 #define PIN_NUM_MISO 19
 #define PIN_NUM_MOSI 23
 #define PIN_NUM_CLK  18
 #define PIN_NUM_CS 22
 
-/*
-SDMMC pin configuration
-#define MODE_SPI 0
-MOSI = 15
-MISO = 2
-CLK = 14
-*/
-
 extern SemaphoreHandle_t dispLock;
 //SemaphoreHandle_t dmaChannel2Sem;
-
-#define MAX_OPEN_FILES 32
-
-typedef struct {
-	FILE* file;
-	int offset;
-	int size;
-	char name[12];
-} FileDesc;
-
-static FileDesc fds[MAX_OPEN_FILES];
 
 static bool init_SD = false;
 static int nextHandle = 0;
@@ -212,10 +190,8 @@ const char *I_DoomSaveDir(void)
 }
 
 
-
 static void Init_SD()
 {
-#if MODE_SPI == 1
 	xSemaphoreTake(dispLock, portMAX_DELAY);
 
 	sdmmc_host_t host = SDSPI_HOST_DEFAULT();
@@ -224,146 +200,108 @@ static void Init_SD()
 
 	//host.command_timeout_ms=200;
 	//host.max_freq_khz = SDMMC_FREQ_PROBING;
-    sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
-    slot_config.gpio_miso = PIN_NUM_MISO;
-    slot_config.gpio_mosi = PIN_NUM_MOSI;
-    slot_config.gpio_sck  = PIN_NUM_CLK;
-    slot_config.gpio_cs   = PIN_NUM_CS;
+	sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
+	slot_config.gpio_miso = PIN_NUM_MISO;
+	slot_config.gpio_mosi = PIN_NUM_MOSI;
+	slot_config.gpio_sck  = PIN_NUM_CLK;
+	slot_config.gpio_cs   = PIN_NUM_CS;
 	//slot_config.dma_channel = 1; //2
-#else
-	sdmmc_host_t host = SDMMC_HOST_DEFAULT();
-	host.flags = SDMMC_HOST_FLAG_1BIT;
-	//host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
-	host.command_timeout_ms=500;
-	sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
-	slot_config.width = 1;
-#endif
-    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
-        .format_if_mount_failed = false,
-        .max_files = 2
-    };
+
+	esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+			.format_if_mount_failed = false,
+			.max_files = 8
+	};
 
 	sdmmc_card_t* card;
-    esp_err_t ret = esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
+	esp_err_t ret = esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
 
-    if (ret != ESP_OK) {
-        if (ret == ESP_FAIL) {
-            lprintf(LO_INFO, "Init_SD: Failed to mount filesystem.\n");
-        } else {
-           lprintf(LO_INFO, "Init_SD: Failed to initialize the card. %d\n", ret);
-        }
-        return;
-    }
-	lprintf(LO_INFO, "Init_SD: SD card opened.\n");
+	if (ret != ESP_OK) {
+			if (ret == ESP_FAIL) {
+					lprintf(LO_INFO, "Init_SD: Failed to mount filesystem.\n");
+			} else {
+					lprintf(LO_INFO, "Init_SD: Failed to initialize the card. %d\n", ret);
+			}
+			return;
+	}
+
+	// Create the save dir. It will fail silently if it exists
+	mkdir(I_DoomSaveDir(), 0755);
+
 	//sdmmc_card_print_info(stdout, card);
 	init_SD = true;
 
 	xSemaphoreGive(dispLock);
+
+	lprintf(LO_INFO, "Init_SD: SD card opened.\n");
 }
 
 
-int I_Open(const char *fname, int flags) {
-	lprintf(LO_INFO, "I_Open: Opening File: %s\n", fname);
-
+int I_Open(const char *fname, int flags)
+{
 	if (init_SD == false)
 		Init_SD();
+
+	lprintf(LO_INFO, "I_Open: Opening File: %s\n", fname);
 	
-	int x = 0;
-	while (x < MAX_OPEN_FILES && fds[x].file != NULL && strcmp(fds[x].name, fname) != 0)
-		x++;
-
-	if (x == MAX_OPEN_FILES)
-	{
-		lprintf(LO_INFO, "I_Open: Too many handles open\n");
-		return -1;
-	}
-
-	if (strcmp(fds[x].name, fname) == 0)
-	{
-		lprintf(LO_INFO, "I_Open: File already open at handle %d\n", x);
-		xSemaphoreTake(dispLock, portMAX_DELAY);
-		rewind(fds[x].file);
-		xSemaphoreGive(dispLock);
-		return x;
-	}
-
-	lprintf(LO_INFO, "I_Open: Got handle: %d\n", x);
-
-	char filepath[256];
-
-	sprintf(filepath, "%s/%s", I_DoomExeDir(), fname);
-	printf("Trying to load %s\n", filepath);
-
 	xSemaphoreTake(dispLock, portMAX_DELAY);
-	fds[x].file = fopen(filepath, "rb");
-	if (fds[x].file) {
-		strcpy(fds[x].name, fname);
-		fseek(fds[x].file, 0L, SEEK_END);
-		fds[x].size = ftell(fds[x].file);
-		fds[x].offset = 0;
-		rewind(fds[x].file);
-		lprintf(LO_INFO, "Size: %d\n", fds[x].size);
-	}
+	char filepath[256];
+	sprintf(filepath, "%s/%s", I_DoomExeDir(), fname);
+	FILE *handle = fopen(filepath, "rb");
 	xSemaphoreGive(dispLock);
 
-	if (!fds[x].file) {
-		lprintf(LO_INFO, "I_Open: open %s failed\n", fname);
+	if (!handle) {
+		lprintf(LO_INFO, "I_Open: open %s failed\n", fname);	
 		return -1;
 	}
 
-	return x;
+	return handle;
 }
 
 
-int I_Lseek(int ifd, off_t offset, int whence) {
-	if (whence == SEEK_END) {
-		lprintf(LO_INFO, "I_Lseek: SEEK_END unimplemented\n");
-	} else {
-		xSemaphoreTake(dispLock, portMAX_DELAY);
-		fseek(fds[ifd].file, offset, whence);
-		fds[ifd].offset = ftell(fds[ifd].file);
-		xSemaphoreGive(dispLock);
-	}
-	
-	return fds[ifd].offset;
-}
-
-
-int I_Filelength(int ifd)
+void I_Read(int handle, void* vbuf, size_t sz)
 {
-	return fds[ifd].size;
-}
-
-
-void I_Read(int ifd, void* vbuf, size_t sz)
-{
-	int readBytes = 0;
+	xSemaphoreTake(dispLock, portMAX_DELAY);
 	
 	for (int i = 0; i < 20; i++) {
-		xSemaphoreTake(dispLock, portMAX_DELAY);
-		readBytes = fread(vbuf, sz, 1, fds[ifd].file);
-		xSemaphoreGive(dispLock);
-		
-		if (readBytes == 1) {
+		if (fread(vbuf, sz, 1, handle) == 1) {
+			xSemaphoreGive(dispLock);
 			return;
 		}
-		
 		lprintf(LO_INFO, "Error Reading %d bytes\n", (int)sz);
 	}
+	
+	xSemaphoreGive(dispLock);
 
 	I_Error("I_Read: Error Reading %d bytes after 20 tries", (int)sz);
 }
 
 
-void I_Close(int fd)
+int I_Lseek(int handle, off_t offset, int whence)
 {
-	lprintf(LO_INFO, "I_Open: Closing File: %s\n", fds[fd].name);
-	
 	xSemaphoreTake(dispLock, portMAX_DELAY);
-	fclose(fds[fd].file);
+	int seeked = fseek(handle, offset, whence);
 	xSemaphoreGive(dispLock);
 	
-	fds[fd].file = NULL;
+	return seeked;
+}
+
+
+int I_Filelength(int handle)
+{
+  struct stat fileinfo;
+  if (fstat(handle, &fileinfo) == -1)
+    I_Error("I_Filelength: %s", strerror(errno));
+  return fileinfo.st_size;
+}
+
+
+void I_Close(int handle)
+{
+	lprintf(LO_INFO, "I_Open: Closing File: %d\n", handle);
+	
+	xSemaphoreTake(dispLock, portMAX_DELAY);
+	fclose(handle);
+	xSemaphoreGive(dispLock);
 }
 
 
