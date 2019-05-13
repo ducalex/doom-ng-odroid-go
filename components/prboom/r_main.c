@@ -58,7 +58,7 @@
 #include "g_game.h"
 #include "r_demo.h"
 #include "r_fps.h"
-#include "esp_heap_caps.h"
+#include "odroid_util.h"
 
 // Fineangles in the SCREENWIDTH wide window.
 #define FIELDOFVIEW 2048
@@ -560,9 +560,8 @@ static void R_ShowStats(void)
   int now = I_GetTime();
 
   if (now - showtime > 35) {
-    multi_heap_info_t info;
-    heap_caps_get_info(&info, MALLOC_CAP_DEFAULT);
-    doom_printf("fps: %d mem: %.0fK", (35*KEEPTIMES)/(now - keeptime[0]), (float)info.total_free_bytes / 1024);
+    doom_printf("fps: %d mem: %dK %dK", (35*KEEPTIMES)/(now - keeptime[0]), 
+                    free_bytes_internal() / 1024, free_bytes_spiram() / 1024);
     /*
     doom_printf((V_GetMode() == VID_MODEGL)
                 ?"Frame rate %d fps\nWalls %d, Flats %d, Sprites %d"

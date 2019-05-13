@@ -55,6 +55,10 @@ VOLUME+RIGHT |
 
 - Cheat menu instead of the weird key combinations.
 
+- Fix the random lags
+
+- Fix the memory allocation failures due to memory fragmentation (especially when switching levels)
+
 
 # Compilation
 

@@ -1,11 +1,27 @@
 #include "esp_heap_caps.h"
+#include "odroid_util.h"
 
-size_t total_free_bytes()
+size_t free_bytes_total()
 {
   multi_heap_info_t info;
   heap_caps_get_info(&info, MALLOC_CAP_DEFAULT);
   return info.total_free_bytes;
 }
+
+size_t free_bytes_internal()
+{
+  multi_heap_info_t info;
+  heap_caps_get_info(&info, MALLOC_CAP_INTERNAL);
+  return info.total_free_bytes;
+}
+
+size_t free_bytes_spiram()
+{
+  multi_heap_info_t info;
+  heap_caps_get_info(&info, MALLOC_CAP_SPIRAM);
+  return info.total_free_bytes;
+}
+
 
 #if 0
 void odroid_system_led_set(int value)

@@ -392,8 +392,8 @@ void *(Z_Malloc)(size_t size, int tag, void **user
 #ifdef HAVE_LIBDMALLOC
   while (!(block = dmalloc_malloc(file,line,size + HEADER_SIZE,DMALLOC_FUNC_MALLOC,0,0))) {
 #else
-  //while (!(block = (malloc)(size + HEADER_SIZE))) {
-    while (!(block = (heap_caps_malloc)(size + HEADER_SIZE, MALLOC_CAP_SPIRAM))) {
+  while (!(block = (malloc)(size + HEADER_SIZE))) {
+    //while (!(block = (heap_caps_malloc)(size + HEADER_SIZE, MALLOC_CAP_SPIRAM))) {
 #endif
     if (!blockbytag[PU_CACHE])
       I_Error ("Z_Malloc: Failure trying to allocate %lu bytes"

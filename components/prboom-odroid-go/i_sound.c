@@ -635,17 +635,17 @@ void I_StopSong(int handle)
 
 void I_UnRegisterSong(int handle)
 {
-  size_t start_mem = total_free_bytes();
+  size_t start_mem = free_bytes_total();
 
     lprintf(LO_INFO, "I_UnRegisterSong: handle: %d\n", handle);
     music_player->unregistersong(handle);
 
-  lprintf(LO_INFO, "I_UnRegisterSong: mem freed: %d\n", total_free_bytes() - start_mem);
+  lprintf(LO_INFO, "I_UnRegisterSong: mem freed: %d\n", free_bytes_total() - start_mem);
 }
 
 int I_RegisterSong(const void *data, size_t len)
 {
-  size_t start_mem = total_free_bytes();
+  size_t start_mem = free_bytes_total();
 
   static MUSheader MUSh;
   MIDI *music_handle = NULL;
@@ -676,7 +676,7 @@ int I_RegisterSong(const void *data, size_t len)
     free(mid);
   }
 
-  lprintf(LO_INFO, "I_RegisterSong: mem used: %d\n", start_mem - total_free_bytes());
+  lprintf(LO_INFO, "I_RegisterSong: mem used: %d\n", start_mem - free_bytes_total());
 
   return music_handle;
 }
