@@ -90,7 +90,8 @@ static boolean isExtraDDisplay = false;
 static void D_QuitNetGame (void);
 
 #ifndef HAVE_NET
-doomcom_t*      doomcom;
+doomcom_t       doomcom_stack;
+doomcom_t      *doomcom = &doomcom_stack;
 #endif
 
 #ifdef HAVE_NET
@@ -170,7 +171,6 @@ void D_InitNetGame (void)
 {
   int i;
 
-  doomcom = Z_Malloc(sizeof *doomcom, PU_STATIC, NULL);
   doomcom->consoleplayer = 0;
   doomcom->numnodes = 0; doomcom->numplayers = 1;
   localcmds = netcmds[consoleplayer];

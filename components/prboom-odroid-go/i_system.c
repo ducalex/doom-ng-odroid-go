@@ -307,9 +307,6 @@ void I_Close(int handle)
 
 char* I_FindFile(const char* wfname, const char* ext)
 {
-  char *p;
-  p = malloc(strlen(wfname)+4);
-  sprintf(p, "%s.%s", wfname, ext);
   return NULL;
 }
 

@@ -837,7 +837,7 @@ default_t defaults[] =
 };
 
 int numdefaults;
-static const char* defaultfile; // CPhipps - static, const
+static char defaultfile[PATH_MAX+1]; // CPhipps - static, const
 
 //
 // M_SaveDefaults
@@ -929,12 +929,11 @@ void M_LoadDefaults (void)
 
   i = M_CheckParm ("-config");
   if (i && i < myargc-1)
-    defaultfile = myargv[i+1];
+    strcpy(defaultfile, myargv[i+1]);
   else {
     const char* exedir = I_DoomExeDir();
-    defaultfile = malloc(PATH_MAX+1);
     /* get config file from same directory as executable */
-    sprintf ((char *)defaultfile, "prboom.cfg");
+    strcpy(defaultfile, "prboom.cfg");
   }
 
   lprintf (LO_CONFIRM, " default file: %s\n",defaultfile);
@@ -963,22 +962,22 @@ void M_LoadDefaults (void)
           newstring = (char *) malloc(len);
           strparm[len-1] = 0; // clears trailing double-quote mark
           strcpy(newstring, strparm+1); // clears leading double-quote mark
-  } else if ((strparm[0] == '0') && (strparm[1] == 'x')) {
-    // CPhipps - allow ints to be specified in hex
-    sscanf(strparm+2, "%x", &parm);
-  } else {
+        } else if ((strparm[0] == '0') && (strparm[1] == 'x')) {
+          // CPhipps - allow ints to be specified in hex
+          sscanf(strparm+2, "%x", &parm);
+        } else {
           sscanf(strparm, "%i", &parm);
-    // Keycode hack removed
-  }
+          // Keycode hack removed
+        }
 
         for (i = 0 ; i < numdefaults ; i++)
           if ((defaults[i].type != def_none) && !strcmp(def, defaults[i].name))
             {
       // CPhipps - safety check
             if (isstring != IS_STRING(defaults[i])) {
-        lprintf(LO_WARN, "M_LoadDefaults: Type mismatch reading %s\n", defaults[i].name);
-        continue;
-      }
+              lprintf(LO_WARN, "M_LoadDefaults: Type mismatch reading %s\n", defaults[i].name);
+              continue;
+            }
             if (!isstring)
               {
 
@@ -992,9 +991,13 @@ void M_LoadDefaults (void)
               {
               free((char*)*(defaults[i].location.ppsz));  /* phares 4/13/98 */
               *(defaults[i].location.ppsz) = newstring;
+              newstring = NULL;
               }
             break;
             }
+          
+          if (newstring != NULL)
+            free(newstring);
         }
       }
 

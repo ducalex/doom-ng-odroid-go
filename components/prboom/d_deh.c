@@ -1353,25 +1353,20 @@ static const deh_bexptr deh_bexptrs[] = // CPhipps - static const
 
 // to hold startup code pointers from INFO.C
 // CPhipps - static
-static actionf_t *deh_codeptr;
+static actionf_t deh_codeptr[NUMSTATES];
 
 // haleyjd: support for BEX SPRITES, SOUNDS, and MUSIC
-char *deh_spritenames[NUMSPRITES + 1];
+char *deh_spritenames[];
 char *deh_musicnames[NUMMUSIC + 1];
 char *deh_soundnames[NUMSFX + 1];
 
 void D_BuildBEXTables(void)
 {
-   int i;
-   deh_codeptr = malloc(NUMSTATES*sizeof(actionf_t));
    // moved from ProcessDehFile, then we don't need the static int i
-   for (i = 0; i < NUMSTATES; i++)  // remember what they start as for deh xref
+   for (int i = 0; i < NUMSTATES; i++)  // remember what they start as for deh xref
      deh_codeptr[i] = states[i].action;
 
-   for(i = 0; i < NUMSPRITES; i++)
-      deh_spritenames[i] = strdup(sprnames[i]);
-   deh_spritenames[NUMSPRITES] = NULL;
-
+  *deh_spritenames = sprnames;
 //Disabled - JD
 #if 0
    for(i = 1; i < NUMMUSIC; i++)

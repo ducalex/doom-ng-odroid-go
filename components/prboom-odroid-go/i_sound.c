@@ -95,7 +95,7 @@ int 		lengths[NUMSFX];
 // Basically, samples from all active internal channels
 //  are modifed and added, and stored in the buffer
 //  that is submitted to the audio device.
-unsigned char	*mixbuffer;
+unsigned char	mixbuffer[MIXBUFFERSIZE] = {0};
 
 // The channel data pointers, start and end.
 unsigned char*	channels[NUM_MIX_CHANNELS];
@@ -517,7 +517,7 @@ void IRAM_ATTR updateTask(void *arg)
 
 void I_InitSound(void)
 {
-  mixbuffer = malloc(MIXBUFFERSIZE*sizeof(unsigned char));
+  memset(mixbuffer, 0, MIXBUFFERSIZE);
 
   static const i2s_config_t i2s_config = {
     .mode = I2S_MODE_MASTER | I2S_MODE_TX | /*I2S_MODE_PDM,*/ I2S_MODE_DAC_BUILT_IN,
@@ -578,18 +578,13 @@ void I_InitSound(void)
   }
 
   lprintf( LO_INFO, " pre-cached all sound data\n");
-  
-  // Now initialize mixbuffer with zero.
-  for ( int i = 0; i< MIXBUFFERSIZE; i++ )
-    mixbuffer[i] = 0;
 
-  music_player->init(SAMPLERATE); //  * 2
+  music_player->init(SAMPLERATE);
 
   // Finished initialization.
   lprintf(LO_INFO, "I_InitSound: sound module ready\n");
 
   xTaskCreatePinnedToCore(&updateTask, "updateTask", 1000, NULL, 6, NULL, 1);
-  
 }
 
 
@@ -637,8 +632,8 @@ void I_UnRegisterSong(int handle)
 {
   size_t start_mem = free_bytes_total();
 
-    lprintf(LO_INFO, "I_UnRegisterSong: handle: %d\n", handle);
-    music_player->unregistersong(handle);
+  lprintf(LO_INFO, "I_UnRegisterSong: handle: %d\n", handle);
+  music_player->unregistersong(handle);
 
   lprintf(LO_INFO, "I_UnRegisterSong: mem freed: %d\n", free_bytes_total() - start_mem);
 }
@@ -671,8 +666,8 @@ int I_RegisterSong(const void *data, size_t len)
 
   err = MIDIToMidi(&mididata, &mid, &midlen);
   if (err == 0) {
-    music_handle = music_player->registersong(mid, midlen);
     free_mididata(&mididata);
+    music_handle = music_player->registersong(mid, midlen);
     free(mid);
   }
 
