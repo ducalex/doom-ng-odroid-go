@@ -53,6 +53,7 @@
 #include "s_sound.h"
 
 #include "mmus2mid.h"
+//#include "mus2mid.h"
 #include "midifile.h"
 #include "oplplayer.h"
 
@@ -124,12 +125,12 @@ int		channelids[NUM_MIX_CHANNELS];
 
 typedef struct
 {
-  char        ID[4];            // identifier "MUS"0x1A
-  UWORD       ScoreLength;      // length of music portion
-  UWORD       ScoreStart;       // offset of music portion
-  UWORD       channels;         // count of primary channels
-  UWORD       SecChannels;      // count of secondary channels
-  UWORD       InstrCnt;         // number of instruments
+  char           ID[4];            // identifier "MUS"0x1A
+  uint16_t       ScoreLength;      // length of music portion
+  uint16_t       ScoreStart;       // offset of music portion
+  uint16_t       channels;         // count of primary channels
+  uint16_t       SecChannels;      // count of secondary channels
+  uint16_t       InstrCnt;         // number of instruments
 } PACKEDATTR MUSheader;
 
 //
@@ -643,23 +644,21 @@ int I_RegisterSong(const void *data, size_t len)
   size_t start_mem = free_bytes_total();
 
   static MUSheader MUSh;
-  MIDI *music_handle = NULL;
+  void *music_handle = NULL;
   MIDI mididata;
   int err, midlen;
-  UBYTE *mid;
+  uint8_t *mid;
   int result;
   
   memcpy(&MUSh, data, sizeof(MUSheader));
-  MUSh.ScoreLength = doom_wtohs(MUSh.ScoreLength);
-  MUSh.ScoreStart  = doom_wtohs(MUSh.ScoreStart);
-  MUSh.channels    = doom_wtohs(MUSh.channels);
-  MUSh.SecChannels = doom_wtohs(MUSh.SecChannels);
-  MUSh.InstrCnt    = doom_wtohs(MUSh.InstrCnt);
 
   lprintf(LO_INFO, "I_RegisterSong: Length: %d, Start: %d, Channels: %d, SecChannels: %d, Instruments: %d.\n",
                           MUSh.ScoreLength, MUSh.ScoreStart, MUSh.channels, MUSh.SecChannels, MUSh.InstrCnt);
 
-  err = mmus2mid(data, &mididata, 89, 1);
+  //uint32_t midlen;
+  //err = _WM_mus2midi(data, len, &mid, &midlen, 32); 
+
+  err = mmus2mid(data, &mididata, 64, 1);
   if (err != 0) {
     return 0;
   }
