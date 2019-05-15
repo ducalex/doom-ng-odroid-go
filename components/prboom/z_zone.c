@@ -361,6 +361,10 @@ void *(Z_Malloc)(size_t size, int tag, void **user
        );
 #endif
 
+#ifdef INSTRUMENTED
+  lprintf(LO_INFO, "Z_Malloc: allocating %d bytes, file: %s:%d\n", size, file, line);
+#endif
+
   if (!size)
     return user ? *user = NULL : NULL;           // malloc(0) returns NULL
 
