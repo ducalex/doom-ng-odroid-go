@@ -38,6 +38,7 @@
 
 
 extern void gamepadInit();
+extern void Init_SD();
 extern int doom_main(int argc, char const * const *argv);
 extern void spi_lcd_init() ;
 
@@ -49,17 +50,22 @@ void doomEngineTask(void *pvParameters)
 
 void app_main()
 {
-	printf("app_main(): calling initializing odroid LED\n");
+	printf("app_main(): Setting up GPIOs\n");
 	gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
 	gpio_set_level(GPIO_NUM_2, 0);
-	printf("app_main(): calling spi_lcd_init()\n");
+	
+	printf("app_main(): Initializing SPI LCD\n");
 	spi_lcd_init();
-	// Non-Volatile Storage support for Odroid-GO
-  	printf("\nLoading Odroid-GO NVS support...\n");
+	
+	printf("app_main(): Initializing SD Card\n");
+	Init_SD();
+  	
+	printf("app_main(): Initializing NVS Storage\n");
 	nvs_flash_init();
-	printf("Finished loading NVS support.\n");
-	printf("app_main(): calling gamepadInit()\n");
+
+	printf("app_main(): Initializing gamepad\n");
 	gamepadInit();
-	printf("app_main(): calling doomEngineTask\n");
+	
+	printf("app_main(): Starting Doom!\n");
 	xTaskCreatePinnedToCore(&doomEngineTask, "doomEngine", 18000, NULL, 5, NULL, 0);
 }

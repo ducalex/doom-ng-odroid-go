@@ -190,8 +190,10 @@ const char *I_DoomSaveDir(void)
 }
 
 
-static void Init_SD()
+void Init_SD()
 {
+	if (init_SD == true) return;
+
 	xSemaphoreTake(dispLock, portMAX_DELAY);
 
 	sdmmc_host_t host = SDSPI_HOST_DEFAULT();
@@ -244,9 +246,10 @@ int I_Open(const char *fname, int flags)
 	lprintf(LO_INFO, "I_Open: Opening File: %s\n", fname);
 	
 	xSemaphoreTake(dispLock, portMAX_DELAY);
-	char filepath[256];
-	sprintf(filepath, "%s/%s", I_DoomExeDir(), fname);
-	FILE *handle = fopen(filepath, "rb");
+	//char filepath[256];
+	//sprintf(filepath, "%s/%s", I_DoomExeDir(), fname);
+	//FILE *handle = fopen(filepath, "rb");
+	FILE *handle = fopen(fname, "rb");
 	xSemaphoreGive(dispLock);
 
 	if (!handle) {
@@ -305,9 +308,23 @@ void I_Close(int handle)
 }
 
 
-char* I_FindFile(const char* wfname, const char* ext)
+char* I_FindFile(const char* fname, const char* ext)
 {
-  return NULL;
+	char filepath[256];
+	char *ret = NULL;
+
+	xSemaphoreTake(dispLock, portMAX_DELAY);
+	sprintf(filepath, "%s/%s", I_DoomExeDir(), fname);
+	lprintf(LO_INFO, "Looking for file: %s...", fname);
+	if (access( filepath, R_OK ) != -1) {
+		lprintf(LO_INFO, "Found file: %s\n", filepath);
+		ret = strdup(filepath);
+	} else {
+		lprintf(LO_INFO, "Not found.\n");
+	}
+	xSemaphoreGive(dispLock);
+	
+	return ret;
 }
 
 

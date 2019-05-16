@@ -334,7 +334,6 @@ void gamepadPoll(void)
 void gamepadInit(void)
 {
 	if (input_gamepad_initialized) {
-		lprintf(LO_INFO, "gamepadInit: Game pad already Initialized!\n");
 		return;
 	}
 
