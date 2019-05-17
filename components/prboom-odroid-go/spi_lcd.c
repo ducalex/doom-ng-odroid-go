@@ -1,16 +1,19 @@
-// Copyright 2016-2017 Espressif Systems (Shanghai) PTE LTD
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/* 
+ * This file is part of doom-ng-odroid-go.
+ * Copyright (c) 2019 ducalex.
+ * 
+ * This program is free software: you can redistribute it and/or modify  
+ * it under the terms of the GNU General Public License as published by  
+ * the Free Software Foundation, version 3.
+ *
+ * This program is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License 
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,14 +21,15 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_system.h"
-#include "soc/gpio_struct.h"
 #include "esp_heap_caps.h"
+#include "soc/gpio_struct.h"
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 
 #include "sdkconfig.h"
 
+#include "fonts/DejaVuSans24.h"
 #include "spi_lcd.h"
 
 #define PIN_NUM_MISO 19
@@ -37,26 +41,19 @@
 #define PIN_NUM_BCKL 14
 
 static spi_device_handle_t spi;
-static int BacklightLevel = 75;
-
+static uint8_t BacklightLevel = 75;
 static uint8_t *currFbPtr = NULL;
+
+static int16_t color_palette[256] = {0, 7 << 12, 7 << 5, 7};
+
+static uint8_t *displayFont;
+static propFont	fontChar;
 
 SemaphoreHandle_t dispSem = NULL;
 SemaphoreHandle_t dispLock = NULL;
-//SemaphoreHandle_t dispLock = NULL;
-
-extern int16_t lcdpal[256];
 
 #define NO_SIM_TRANS 5        //Amount of SPI transfers to queue in parallel
 #define MEM_PER_TRANS 320 * 2 //in 16-bit words
-
-#define MADCTL_MY 0x80
-#define MADCTL_MX 0x40
-#define MADCTL_MV 0x20
-#define MADCTL_ML 0x10
-#define MADCTL_MH 0x04
-#define TFT_RGB_BGR 0x08
-#define TFT_CMD_SWRESET 0x01
 
 // LCD initialization commands
 typedef struct
@@ -66,10 +63,10 @@ typedef struct
     uint8_t databytes; //No of data in data; bit 7 = delay after set; 0xFF = end of cmds.
 } ili_init_cmd_t;
 
-DRAM_ATTR static const ili_init_cmd_t ili_init_cmds[] = {
+DRAM_ATTR static ili_init_cmd_t ili_init_cmds[] = {
     // VCI=2.8V
     //************* Start Initial Sequence **********//
-    {TFT_CMD_SWRESET, {0}, 0x80},
+    {0x01, {0}, 0x80}, // Software reset
     {0xCF, {0x00, 0xc3, 0x30}, 3},
     {0xED, {0x64, 0x03, 0x12, 0x81}, 4},
     {0xE8, {0x85, 0x00, 0x78}, 3},
@@ -95,36 +92,31 @@ DRAM_ATTR static const ili_init_cmd_t ili_init_cmds[] = {
     {0x11, {0}, 0x80}, //Exit Sleep
     {0x29, {0}, 0x80}, //Display on
 
-    {0, {0}, 0xff}};
+    {0, {0}, 0xff}
+};
+
 
 static void backlight_init()
 {
-    // (duty range is 0 ~ ((2**bit_num)-1)
-    const int DUTY_MAX = 0x1fff;
-
     //configure timer0
     ledc_timer_config_t ledc_timer;
     memset(&ledc_timer, 0, sizeof(ledc_timer));
-    ledc_timer.bit_num = LEDC_TIMER_13_BIT;      //set timer counter bit number
-    ledc_timer.freq_hz = 5000;                   //set frequency of pwm
-    ledc_timer.speed_mode = LEDC_LOW_SPEED_MODE; //timer mode,
-    ledc_timer.timer_num = LEDC_TIMER_0;         //timer index
+    ledc_timer.duty_resolution = LEDC_TIMER_13_BIT; //set timer counter bit number
+    ledc_timer.freq_hz = 5000;                      //set frequency of pwm
+    ledc_timer.speed_mode = LEDC_LOW_SPEED_MODE;    //timer mode,
+    ledc_timer.timer_num = LEDC_TIMER_0;            //timer index
     ledc_timer_config(&ledc_timer);
 
     //set the configuration
     ledc_channel_config_t ledc_channel;
     memset(&ledc_channel, 0, sizeof(ledc_channel));
-
     ledc_channel.channel = LEDC_CHANNEL_0;
-    ledc_channel.duty = DUTY_MAX;
+    ledc_channel.duty = TFT_LED_DUTY_MAX;
     ledc_channel.gpio_num = PIN_NUM_BCKL;
     ledc_channel.intr_type = LEDC_INTR_FADE_END;
     ledc_channel.speed_mode = LEDC_LOW_SPEED_MODE;
     ledc_channel.timer_sel = LEDC_TIMER_0;
     ledc_channel_config(&ledc_channel);
-
-    //ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, DUTY_MAX);
-    //ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
 
     //initialize fade service.
     ledc_fade_func_install(0);
@@ -144,239 +136,254 @@ void backlight_percentage_set(short level)
 
     BacklightLevel = level;
 
-    int DUTY_MAX = 0x1fff;
-    int duty = DUTY_MAX * (BacklightLevel * 0.01f);
+    int duty = TFT_LED_DUTY_MAX * (BacklightLevel * 0.01f);
 
     ledc_set_fade_with_time(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, duty, 1);
     ledc_fade_start(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, LEDC_FADE_WAIT_DONE /*LEDC_FADE_NO_WAIT*/);
 }
 
-//Send a command to the ILI9341. Uses spi_device_transmit, which waits until the transfer is complete.
-void ili_cmd(spi_device_handle_t spi, const uint8_t cmd)
+
+void IRAM_ATTR displayTask(void *arg)
 {
-    esp_err_t ret;
-    spi_transaction_t t;
-    memset(&t, 0, sizeof(t));           //Zero out the transaction
-    t.length = 8;                       //Command is 8 bits
-    t.tx_buffer = &cmd;                 //The data is the cmd itself
-    t.user = (void *)0;                 //D/C needs to be set to 0
-    ret = spi_device_transmit(spi, &t); //Transmit!
-    assert(ret == ESP_OK);              //Should have had no issues.
+    while (1)
+    {
+        xSemaphoreTake(dispSem, portMAX_DELAY);
+        spi_lcd_fb_flush();
+    }
 }
 
-//Send data to the ILI9341. Uses spi_device_transmit, which waits until the transfer is complete.
-void ili_data(spi_device_handle_t spi, const uint8_t *data, int len)
+
+void spi_lcd_transmit(uint8_t *data, int len, int dc)
 {
     esp_err_t ret;
     spi_transaction_t t;
     if (len == 0) return;               //no need to send anything
     memset(&t, 0, sizeof(t));           //Zero out the transaction
-    t.length = len * 8;                 //Len is in bytes, transaction length is in bits.
-    t.tx_buffer = data;                 //Data
-    t.user = (void *)1;                 //D/C needs to be set to 1
+    t.length = len * 8;                 //Command is 8 bits
+    t.tx_buffer = data;                 //The data is the cmd itself
+    t.user = (void *)dc;                //D/C needs to be set to 0
     ret = spi_device_transmit(spi, &t); //Transmit!
     assert(ret == ESP_OK);              //Should have had no issues.
 }
 
-//This function is called (in irq context!) just before a transmission starts. It will
-//set the D/C line to the value indicated in the user field.
-void ili_spi_pre_transfer_callback(spi_transaction_t *t)
+
+void spi_lcd_cmd(uint8_t cmd)
+{
+    spi_lcd_transmit(&cmd, 1, 0);
+}
+
+
+void spi_lcd_data(uint8_t *data, int len)
+{
+    spi_lcd_transmit(data, len, 1);
+}
+
+
+static void spi_lcd_pre_transfer_callback(spi_transaction_t *t)
 {
     gpio_set_level(PIN_NUM_DC, (int)t->user);
 }
 
-//Initialize the display
-void ili_init(spi_device_handle_t spi)
-{
-    int cmd = 0;
-    //Initialize non-SPI GPIOs
-    gpio_set_direction(PIN_NUM_DC, GPIO_MODE_OUTPUT);
-    //gpio_set_direction(PIN_NUM_RST, GPIO_MODE_OUTPUT);
-    //gpio_set_direction(PIN_NUM_BCKL, GPIO_MODE_OUTPUT);
-
-    //Reset the display
-    //gpio_set_level(PIN_NUM_RST, 0);
-    //vTaskDelay(100 / portTICK_RATE_MS);
-    //gpio_set_level(PIN_NUM_RST, 1);
-    //vTaskDelay(100 / portTICK_RATE_MS);
-
-    //Send all the commands
-    while (ili_init_cmds[cmd].databytes != 0xff)
-    {
-        uint8_t dmdata[16];
-        ili_cmd(spi, ili_init_cmds[cmd].cmd);
-        //Need to copy from flash to DMA'able memory
-        memcpy(dmdata, ili_init_cmds[cmd].data, 16);
-        ili_data(spi, dmdata, ili_init_cmds[cmd].databytes & 0x1F);
-        if (ili_init_cmds[cmd].databytes & 0x80)
-        {
-            vTaskDelay(100 / portTICK_RATE_MS);
-        }
-        cmd++;
-    }
-
-    //Enable backlight
-    backlight_init();
-}
-
-static void send_header(spi_device_handle_t spi, int xpos, int ypos, int w, int h)
-{
-    esp_err_t ret;
-    int x;
-    //Transaction descriptors. Declared static so they're not allocated on the stack; we need this memory even when this
-    //function is finished because the SPI driver needs access to it even while we're already calculating the next line.
-    static spi_transaction_t trans[NO_SIM_TRANS];
-
-    //In theory, it's better to initialize trans and data only once and hang on to the initialized
-    //variables. We allocate them on the stack, so we need to re-init them each call.
-    for (x = 0; x < NO_SIM_TRANS; x++)
-    {
-        memset(&trans[x], 0, sizeof(spi_transaction_t));
-        if ((x & 1) == 0)
-        {
-            //Even transfers are commands
-            trans[x].length = 8;
-            trans[x].user = (void *)0;
-        }
-        else
-        {
-            //Odd transfers are data
-            trans[x].length = 8 * 4;
-            trans[x].user = (void *)1;
-        }
-        trans[x].flags = SPI_TRANS_USE_TXDATA;
-    }
-    trans[0].tx_data[0] = 0x2A;                  //Column Address Set
-    trans[1].tx_data[0] = xpos >> 8;             //Start Col High
-    trans[1].tx_data[1] = xpos;                  //Start Col Low
-    trans[1].tx_data[2] = (xpos + w - 1) >> 8;   //End Col High
-    trans[1].tx_data[3] = (xpos + w - 1) & 0xff; //End Col Low
-    trans[2].tx_data[0] = 0x2B;                  //Page address set
-    trans[3].tx_data[0] = ypos >> 8;             //Start page high
-    trans[3].tx_data[1] = ypos & 0xff;           //start page low
-    trans[3].tx_data[2] = (ypos + h - 1) >> 8;   //end page high
-    trans[3].tx_data[3] = (ypos + h - 1) & 0xff; //end page low
-    trans[4].tx_data[0] = 0x2C;                  //memory write
-
-    //Queue all transactions.
-    for (x = 0; x < NO_SIM_TRANS; x++)
-    {
-        ret = spi_device_queue_trans(spi, &trans[x], portMAX_DELAY);
-        assert(ret == ESP_OK);
-    }
-
-    //When we are here, the SPI driver is busy (in the background) getting the transactions sent. That happens
-    //mostly using DMA, so the CPU doesn't have much to do here. We're not going to wait for the transaction to
-    //finish because we may as well spend the time calculating the next line. When that is done, we can call
-    //send_line_finish, which will wait for the transfers to be done and check their status.
-
-    spi_transaction_t *rtrans;
-    //Wait for all 5 transactions to be done and get back the results.
-    for (int x = 0; x < NO_SIM_TRANS; x++)
-    {
-        ret = spi_device_get_trans_result(spi, &rtrans, portMAX_DELAY);
-        assert(ret == ESP_OK);
-    }
-}
-
-void IRAM_ATTR displayTask(void *arg)
-{
-    int x, i;
-    int idx = 0;
-    int inProgress = 0;
-    static uint16_t *dmamem[NO_SIM_TRANS];
-    spi_transaction_t trans[NO_SIM_TRANS];
-    spi_transaction_t *rtrans;
-
-    esp_err_t ret;
-
-    //We're going to do a fair few transfers in parallel. Set them all up.
-    for (x = 0; x < NO_SIM_TRANS; x++)
-    {
-        dmamem[x] = heap_caps_malloc(MEM_PER_TRANS * 2, MALLOC_CAP_DMA);
-        assert(dmamem[x]);
-        memset(&trans[x], 0, sizeof(spi_transaction_t));
-        trans[x].length = MEM_PER_TRANS * 2;
-        trans[x].user = (void *)1;
-        trans[x].tx_buffer = &dmamem[x];
-    }
-
-    while (1)
-    {
-        xSemaphoreTake(dispSem, portMAX_DELAY);
-        xSemaphoreTake(dispLock, portMAX_DELAY);
-
-        send_header(spi, 0, 0, 320, 240);
-        for (x = 0; x < 320 * 240; x += MEM_PER_TRANS)
-        {
-            for (i = 0; i < MEM_PER_TRANS; i++)
-            {
-                dmamem[idx][i] = lcdpal[currFbPtr[x + i]];
-            }
-            trans[idx].length = MEM_PER_TRANS * 16;
-            trans[idx].user = (void *)1;
-            trans[idx].tx_buffer = dmamem[idx];
-            ret = spi_device_queue_trans(spi, &trans[idx], portMAX_DELAY);
-            assert(ret == ESP_OK);
-
-            idx++;
-            if (idx >= NO_SIM_TRANS)
-                idx = 0;
-
-            if (inProgress == NO_SIM_TRANS - 1)
-            {
-                ret = spi_device_get_trans_result(spi, &rtrans, portMAX_DELAY);
-                assert(ret == ESP_OK);
-            }
-            else
-            {
-                inProgress++;
-            }
-        }
-
-        while (inProgress)
-        {
-            ret = spi_device_get_trans_result(spi, &rtrans, portMAX_DELAY);
-            assert(ret == ESP_OK);
-            inProgress--;
-        }
-
-        xSemaphoreGive(dispLock);
-    }
-}
-
-void spi_lcd_cmd(uint8_t cmd)
-{
-    ili_cmd(spi, cmd);
-}
-
-void spi_lcd_data(uint8_t *data, int len)
-{
-    ili_data(spi, data, len);
-}
 
 void spi_lcd_wait_finish()
 {
+
 }
 
-esp_err_t spi_lcd_select()
+
+void spi_lcd_fb_flush()
 {
-    //wait_trans_finish(1);
-    return spi_device_acquire_bus(spi, 0);
+    static uint16_t *dmamem[NO_SIM_TRANS];
+    static spi_transaction_t trans[NO_SIM_TRANS];
+    static bool initialized = false;
+
+    if (!initialized) {  // Initialize parallel transactions
+        for (int x = 0; x < NO_SIM_TRANS; x++)
+        {
+            dmamem[x] = heap_caps_malloc(MEM_PER_TRANS * 2, MALLOC_CAP_DMA);
+            assert(dmamem[x]);
+            memset(&trans[x], 0, sizeof(spi_transaction_t));
+            trans[x].length = MEM_PER_TRANS * 2;
+            trans[x].user = (void *)1;
+            trans[x].tx_buffer = &dmamem[x];
+        }
+        initialized = true;
+    }
+
+    xSemaphoreTake(dispLock, portMAX_DELAY);
+
+    int idx = 0;
+    int inProgress = 0;
+        
+    spi_transaction_t *rtrans;
+    esp_err_t ret;
+
+    uint8_t zero[] = {0, 0}; // 0
+    uint8_t endcol[] = {1, 63}; // 320
+    uint8_t endpage[] = {0, 239}; // 240
+
+    spi_lcd_cmd(0x2A); //Column Address Set
+    spi_lcd_data(zero, 2); //Start Col
+    spi_lcd_data(endcol, 2); //End Col
+
+    spi_lcd_cmd(0x2B); // Page address
+    spi_lcd_data(zero, 2); //Start page
+    spi_lcd_data(endpage, 2); //End page
+    spi_lcd_cmd(0x2C); // Write
+
+    for (int x = 0; x < 320 * 240; x += MEM_PER_TRANS)
+    {
+        for (int i = 0; i < MEM_PER_TRANS; i++)
+        {
+            dmamem[idx][i] = color_palette[currFbPtr[x + i]];
+        }
+        trans[idx].length = MEM_PER_TRANS * 16;
+        trans[idx].user = (void *)1;
+        trans[idx].tx_buffer = dmamem[idx];
+        ret = spi_device_queue_trans(spi, &trans[idx], portMAX_DELAY);
+        assert(ret == ESP_OK);
+
+        idx++;
+        if (idx >= NO_SIM_TRANS)
+            idx = 0;
+
+        if (inProgress == NO_SIM_TRANS - 1)
+        {
+            ret = spi_device_get_trans_result(spi, &rtrans, portMAX_DELAY);
+            assert(ret == ESP_OK);
+        }
+        else
+        {
+            inProgress++;
+        }
+    }
+
+    while (inProgress)
+    {
+        ret = spi_device_get_trans_result(spi, &rtrans, portMAX_DELAY);
+        assert(ret == ESP_OK);
+        inProgress--;
+    }
+
+    xSemaphoreGive(dispLock);
 }
 
-void spi_lcd_deselect()
+
+void spi_lcd_fb_palette(int16_t *palette)
 {
-    //wait_trans_finish(1);
-    spi_device_release_bus(spi);
+    memcpy(color_palette, palette, 512);
 }
 
-void spi_lcd_send(uint16_t *scr)
+
+void spi_lcd_fb_setptr(uint8_t *buffer)
 {
-    memcpy(currFbPtr, scr, 320 * 240);
+    currFbPtr = buffer;
+    xSemaphoreGive(dispSem);
+}
+
+
+void spi_lcd_fb_write(uint8_t *buffer)
+{
+//    xSemaphoreTake(dispLock, portMAX_DELAY);
+    memcpy(currFbPtr, buffer, 320 * 240);
+//    xSemaphoreGive(dispLock);
     //Theoretically, also should double-buffer the lcdpal array... ahwell.
     xSemaphoreGive(dispSem);
 }
+
+
+void spi_lcd_fb_clear()
+{
+    memset(currFbPtr, 0, 320 * 240);
+}
+
+
+void spi_lcd_fb_drawPixel(int x, int y, int color)
+{
+    currFbPtr[x*320 + y] = color;
+}
+
+
+void spi_lcd_fb_setFont(uint8_t *font)
+{
+    int x_size = font[0];
+    int y_size = font[1];
+
+    displayFont = font;
+}
+
+
+static uint8_t getCharPtr(uint8_t c, bool fixed)
+{
+    fontChar.dataPtr = 4;
+    
+    do {
+        fontChar.charCode = displayFont[fontChar.dataPtr++];
+        fontChar.adjYOffset = displayFont[fontChar.dataPtr++];
+        fontChar.width = displayFont[fontChar.dataPtr++];
+        fontChar.height = displayFont[fontChar.dataPtr++];
+        fontChar.xOffset = displayFont[fontChar.dataPtr++];
+        fontChar.xOffset = fontChar.xOffset < 0x80 ? fontChar.xOffset : -(0xFF - fontChar.xOffset);
+        fontChar.xDelta = displayFont[fontChar.dataPtr++];
+
+        if (c != fontChar.charCode && fontChar.charCode != 0xFF) {
+            if (fontChar.width != 0) {
+                // packed bits
+                fontChar.dataPtr += (((fontChar.width * fontChar.height)-1) / 8) + 1;
+            }
+        }
+    } while ((c != fontChar.charCode) && (fontChar.charCode != 0xFF));
+
+    return (c == fontChar.charCode) ? 1 : 0;
+}
+
+
+int spi_lcd_fb_drawChar(int x, int y, uint8_t c, uint16_t color)
+{
+    if (!getCharPtr(c, false)) {
+        return 0;
+    }
+
+	uint8_t ch = 0, char_width = 0;
+	int cx, cy;
+
+	char_width = ((fontChar.width > fontChar.xDelta) ? fontChar.width : fontChar.xDelta);
+
+	// draw Glyph
+	uint8_t mask = 0x80;
+	for (int j = 0; j < fontChar.height; j++) {
+		for (int i = 0; i < fontChar.width; i++) {
+			if (((i + (j*fontChar.width)) % 8) == 0) {
+				mask = 0x80;
+				ch = displayFont[fontChar.dataPtr++];
+			}
+
+			if ((ch & mask) !=0) {
+				cx = (uint16_t)(x+fontChar.xOffset+i);
+				cy = (uint16_t)(y+j+fontChar.adjYOffset);
+				spi_lcd_fb_drawPixel(cy, cx, color);
+			}
+			mask >>= 1;
+		}
+	}
+
+	return char_width;
+}
+
+
+void spi_lcd_fb_print(int x, int y, char *string)
+{
+    for (int i = 0; i < strlen(string); i++) {
+        x += spi_lcd_fb_drawChar(x, y, (uint8_t) string[i], 2);
+    }
+}
+
+
+void spi_lcd_fb_printf(int x, int y, char *string, ...)
+{
+    
+}
+
 
 void IRAM_ATTR spi_lcd_init()
 {
@@ -395,11 +402,11 @@ void IRAM_ATTR spi_lcd_init()
     };
 
     spi_device_interface_config_t devcfg = {
-        .clock_speed_hz = 40000000,              //Clock out at 26 MHz. Yes, that's heavily overclocked.
+        .clock_speed_hz = 40000000,              //Clock out at 40 MHz. Yes, that's heavily overclocked.
         .mode = 0,                               //SPI mode 0
         .spics_io_num = PIN_NUM_CS,              //CS pin
         .queue_size = NO_SIM_TRANS,              //We want to be able to queue this many transfers
-        .pre_cb = ili_spi_pre_transfer_callback, //Specify pre-transfer callback to handle D/C line
+        .pre_cb = spi_lcd_pre_transfer_callback, //Specify pre-transfer callback to handle D/C line
         .flags = SPI_DEVICE_NO_DUMMY
     };
 
@@ -407,18 +414,31 @@ void IRAM_ATTR spi_lcd_init()
 
     //Initialize the SPI bus
     ret = spi_bus_initialize(HSPI_HOST, &buscfg, 2); // DMA Channel
-    //assert(ret==ESP_OK);
+    assert(ret==ESP_OK);
 
     //Attach the LCD to the SPI bus
     ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
     assert(ret == ESP_OK);
 
-    //Initialize the LCD
-    ili_init(spi);
+    gpio_set_direction(PIN_NUM_DC, GPIO_MODE_OUTPUT);
+
+    //Send the init commands
+    int cmd = 0;
+    while (ili_init_cmds[cmd].databytes != 0xff)
+    {
+        spi_lcd_cmd(ili_init_cmds[cmd].cmd);
+        spi_lcd_data(ili_init_cmds[cmd].data, ili_init_cmds[cmd].databytes & 0x1F);
+        cmd++;
+    }
+
+    spi_lcd_fb_setFont(tft_Dejavu24);
+
+    //Enable backlight
+    backlight_init();
 
     xSemaphoreGive(dispLock);
 
-    currFbPtr = heap_caps_malloc(320 * 240, MALLOC_CAP_8BIT);
+    currFbPtr = heap_caps_calloc(1, 320 * 240, MALLOC_CAP_8BIT);
 
     printf("spi_lcd_init(): Starting display task.\n");
     xTaskCreatePinnedToCore(&displayTask, "display", 6000, NULL, 6, NULL, 1);

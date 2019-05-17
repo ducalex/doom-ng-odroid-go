@@ -57,11 +57,14 @@
 
 #include "esp_heap_caps.h"
 
-int use_fullscreen=0;
-int use_doublebuffer=0;
+int use_fullscreen = 0;
+int use_doublebuffer = 0;
+int16_t lcdpal[256];
 
+static uint16_t *screena, *screenb;
+unsigned char *screenbuf;
 
-void I_StartTic (void)
+void I_StartTic(void)
 {
 	gamepadPoll();
 }
@@ -71,7 +74,6 @@ static void I_InitInputs(void)
 {
   gamepadInit();
 }
-
 
 
 static void I_UploadNewPalette(int pal)
@@ -104,13 +106,10 @@ int I_StartDisplay(void)
   return true;
 }
 
+
 void I_EndDisplay(void)
 {
 }
-
-
-
-static uint16_t *screena, *screenb;
 
 
 //
@@ -119,30 +118,15 @@ static uint16_t *screena, *screenb;
 
 void I_FinishUpdate (void)
 {
-	uint16_t *scr=(uint16_t*)screens[0].data;
-#if 0
-	int x, y;
-	char *chrs=" '.~+mM@";
-	ets_printf("\033[1;1H");
-	for (y=0; y<240; y+=4) {
-		for (x=0; x<320; x+=2) {
-			ets_printf("%c", chrs[(scr[x+y*320])>>13]);
-		}
-		ets_printf("\n");
-	}
-#endif
-#if 1
-	spi_lcd_send(scr);
-#endif
+	spi_lcd_fb_write(screens[0].data);
 	//Flip framebuffers
 //	if (scr==screena) screens[0].data=screenb; else screens[0].data=screena;
 }
 
-int16_t lcdpal[256];
 
 void I_SetPalette (int pal)
 {
-	int i, r, g, b, v;
+	int i, v;
 	int pplump = W_GetNumForName("PLAYPAL");
 	const byte * palette = W_CacheLumpNum(pplump);
 	palette+=pal*(3*256);
@@ -152,13 +136,10 @@ void I_SetPalette (int pal)
 //		lcdpal[i]=v;
 		palette += 3;
 	}
+  spi_lcd_fb_palette(lcdpal);
 	W_UnlockLumpNum(pplump);
 }
 
-
-unsigned char *screenbuf;
-
-//#define INTERNAL_MEM_FB
 
 
 void I_PreInitGraphics(void)
@@ -237,16 +218,9 @@ void I_InitGraphics(void)
 
 void I_UpdateVideoMode(void)
 {
-  int init_flags;
-  int i;
-  video_mode_t mode;
-
   lprintf(LO_INFO, "I_UpdateVideoMode: %dx%d\n", SCREENWIDTH, SCREENHEIGHT);
 
-//    mode = VID_MODE16;
-    mode = VID_MODE8;
-
-  V_InitMode(mode);
+  V_InitMode(VID_MODE8);
   V_DestroyUnusedTrueColorPalettes();
   V_FreeScreens();
 
@@ -255,5 +229,4 @@ void I_UpdateVideoMode(void)
   V_AllocScreens();
 
   R_InitBuffer(SCREENWIDTH, SCREENHEIGHT);
-
 }
