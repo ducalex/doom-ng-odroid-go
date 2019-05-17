@@ -8,8 +8,6 @@ typedef struct {
       uint16_t dataPtr;
 } propFont;
 
-extern const uint8_t tft_Dejavu24[];
-
 #define MADCTL_MY 0x80
 #define MADCTL_MX 0x40
 #define MADCTL_MV 0x20

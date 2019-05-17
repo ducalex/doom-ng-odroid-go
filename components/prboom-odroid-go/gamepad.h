@@ -40,4 +40,5 @@ odroid_gamepad_state odroid_input_read_raw();
 void gamepadInit(void);
 void gamepadPoll(void);
 
+volatile int joyVal;
 #endif
