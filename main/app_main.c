@@ -40,8 +40,13 @@ static char *selected_iwad = NULL;
 
 void doomEngineTask(void *pvParameters)
 {
-	char const *argv[] = {"doom", "-cout", "ICWEFDA", "-iwad", selected_iwad, NULL};
-    doom_main(5, argv);
+	if (selected_iwad == NULL) {
+		char const *argv[] = {"doom", "-cout", "ICWEFDA", NULL};
+		doom_main(3, argv);
+	} else {
+		char const *argv[] = {"doom", "-cout", "ICWEFDA", "-iwad", selected_iwad, NULL};
+		doom_main(5, argv);
+	}
 }
 
 void app_main()
