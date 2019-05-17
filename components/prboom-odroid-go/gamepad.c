@@ -337,8 +337,6 @@ void gamepadInit(void)
 		return;
 	}
 
-	lprintf(LO_INFO, "gamepadInit: Initializing game pad.\n");
-
     xSemaphore = xSemaphoreCreateMutex();
 
     if (xSemaphore == NULL)

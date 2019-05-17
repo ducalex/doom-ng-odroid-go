@@ -69,6 +69,7 @@ void I_StartTic (void)
 
 static void I_InitInputs(void)
 {
+  gamepadInit();
 }
 
 
@@ -230,8 +231,6 @@ void I_InitGraphics(void)
 
     /* Initialize the input system */
     I_InitInputs();
-	gamepadInit();
-
   }
 }
 

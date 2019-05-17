@@ -12,35 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "esp_attr.h"
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdio.h>
 
 #include "rom/cache.h"
 #include "rom/ets_sys.h"
-//#include "rom/spi_flash.h"
 #include "rom/crc.h"
 
 #include "soc/soc.h"
-#include "soc/dport_reg.h"
-#include "soc/io_mux_reg.h"
-#include "soc/efuse_reg.h"
 #include "soc/rtc_cntl_reg.h"
-#include <stdio.h>
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
-#include <stdlib.h>
+#include "esp_system.h"
+#include "esp_attr.h"
 #include "esp_err.h"
 #include "nvs_flash.h"
-//#include "esp_partition.h"
-
-//#include "i_system.h"
-
-//#include "spi_lcd.h"
-
 
 extern void gamepadInit();
 extern void Init_SD();
 extern int doom_main(int argc, char const * const *argv);
-extern void spi_lcd_init() ;
+extern void spi_lcd_init();
 
 void doomEngineTask(void *pvParameters)
 {
@@ -59,12 +52,17 @@ void app_main()
 	
 	printf("app_main(): Initializing SD Card\n");
 	Init_SD();
-  	
+	
 	printf("app_main(): Initializing NVS Storage\n");
 	nvs_flash_init();
 
-	printf("app_main(): Initializing gamepad\n");
+	printf("app_main(): Initializing Gamepad\n");
 	gamepadInit();
+	
+	//printf("app_main(): IWad selector\n");
+	//iwad_selector();
+
+	//sleep(30);
 	
 	printf("app_main(): Starting Doom!\n");
 	xTaskCreatePinnedToCore(&doomEngineTask, "doomEngine", 18000, NULL, 5, NULL, 0);
