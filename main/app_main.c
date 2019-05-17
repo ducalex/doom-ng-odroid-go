@@ -34,11 +34,14 @@ extern void gamepadInit();
 extern void Init_SD();
 extern int doom_main(int argc, char const * const *argv);
 extern void spi_lcd_init();
+extern const char* iwad_selector();
+
+static char *selected_iwad = NULL;
 
 void doomEngineTask(void *pvParameters)
 {
-    char const *argv[]={"doom","-cout","ICWEFDA", NULL};
-    doom_main(3, argv);
+	char const *argv[] = {"doom", "-cout", "ICWEFDA", "-iwad", selected_iwad, NULL};
+    doom_main(5, argv);
 }
 
 void app_main()
@@ -59,10 +62,8 @@ void app_main()
 	printf("app_main(): Initializing Gamepad\n");
 	gamepadInit();
 	
-	//printf("app_main(): IWad selector\n");
-	//iwad_selector();
-
-	//sleep(30);
+	printf("app_main(): IWad selector\n");
+	selected_iwad = iwad_selector();
 	
 	printf("app_main(): Starting Doom!\n");
 	xTaskCreatePinnedToCore(&doomEngineTask, "doomEngine", 18000, NULL, 5, NULL, 0);

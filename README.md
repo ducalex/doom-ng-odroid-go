@@ -8,11 +8,12 @@ This is an improvement of [doom-ng-odroid-go](https://github.com/mad-ady/doom-ng
 - Save games
 - Brightness controls
 - Volume controls
+- WAD selector on start
 
 
 # Usage
 
-Copy Doom-*.fw to your sdcard folder `odroid/firmware` and DOOM.WAD to `roms/doom`. Power up the Odroid GO while holding B. Then flash Doom from the menu.
+Copy Doom-*.fw to your sdcard folder `odroid/firmware` and DOOM.WAD to `roms/doom`. Power up the Odroid GO while holding B. Then flash Doom from the menu. You can add more than one WAD at a time, a prompt will be shown on power up.
 
 # Controls
 
@@ -50,8 +51,6 @@ VOLUME+RIGHT |
 - Proper mixing. Currently the music is mixed in the audio stream as if it were a sound effect,  it causes the volume to go down when actual sound effects are playing.
 
 - Fix the options menu and support its sound levels.
-
-- Add a WAD selector before the game starts.
 
 - Cheat menu instead of the weird key combinations.
 
