@@ -46,18 +46,19 @@ VOLUME+RIGHT |
 
 
 
-# To do
+# To do / Known issues
 
 - Proper mixing. Currently the music is mixed in the audio stream as if it were a sound effect,  it causes the volume to go down when actual sound effects are playing.
 
-- Fix the options menu and support its sound levels.
+- Fix the options menu and support its sound levels. (Mostly done but not yet gamepad compatible)
 
 - Cheat menu instead of the weird key combinations.
 
-- Fix the random lags
+- Fix the random lags. It might be caused by SD card access on the shared bus.
 
 - Fix the memory allocation failures due to memory fragmentation (especially when switching levels)
 
+- Fix screen tearing. Locking the framebuffer would fix the issue but it drops the framerate significantly.
 
 # Compilation
 

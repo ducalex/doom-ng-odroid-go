@@ -1522,7 +1522,7 @@ menuitem_t SetupMenu[]=
   {1,"M_AUTO"  ,M_Automap,    'a'},
   {1,"M_ENEM"  ,M_Enemy,      'e'},
   {1,"M_MESS"  ,M_Messages,   'm'},
-  {1,"M_CHAT"  ,M_ChatStrings,'c'},
+  //{1,"M_CHAT"  ,M_ChatStrings,'c'},
 };
 
 /////////////////////////////
