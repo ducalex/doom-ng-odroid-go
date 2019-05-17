@@ -81,7 +81,6 @@
 #include "driver/sdmmc_host.h"
 #include "driver/sdspi_host.h"
 #include "sdmmc_cmd.h"
-#include "dma.h"
 #include "esp_timer.h"
 
 #ifdef __GNUG__

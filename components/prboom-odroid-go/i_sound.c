@@ -62,7 +62,6 @@
 #include "doomtype.h"
 
 #include "d_main.h"
-#include "dma.h"
 
 #include "odroid_util.h"
 
