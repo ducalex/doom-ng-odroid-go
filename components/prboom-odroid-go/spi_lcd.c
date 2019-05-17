@@ -39,7 +39,7 @@
 static spi_device_handle_t spi;
 static int BacklightLevel = 75;
 
-static uint32_t *currFbPtr = NULL;
+static uint8_t *currFbPtr = NULL;
 
 SemaphoreHandle_t dispSem = NULL;
 SemaphoreHandle_t dispLock = NULL;
@@ -293,7 +293,6 @@ void IRAM_ATTR displayTask(void *arg)
     //We're going to do a fair few transfers in parallel. Set them all up.
     for (x = 0; x < NO_SIM_TRANS; x++)
     {
-        //dmamem[x]=pvPortMallocCaps(MEM_PER_TRANS*2, MALLOC_CAP_DMA);
         dmamem[x] = heap_caps_malloc(MEM_PER_TRANS * 2, MALLOC_CAP_DMA);
         assert(dmamem[x]);
         memset(&trans[x], 0, sizeof(spi_transaction_t));
@@ -310,13 +309,9 @@ void IRAM_ATTR displayTask(void *arg)
         send_header(spi, 0, 0, 320, 240);
         for (x = 0; x < 320 * 240; x += MEM_PER_TRANS)
         {
-            for (i = 0; i < MEM_PER_TRANS; i += 4)
+            for (i = 0; i < MEM_PER_TRANS; i++)
             {
-                uint32_t d = currFbPtr[(x + i) / 4];
-                dmamem[idx][i + 0] = lcdpal[(d >> 0) & 0xff];
-                dmamem[idx][i + 1] = lcdpal[(d >> 8) & 0xff];
-                dmamem[idx][i + 2] = lcdpal[(d >> 16) & 0xff];
-                dmamem[idx][i + 3] = lcdpal[(d >> 24) & 0xff];
+                dmamem[idx][i] = lcdpal[currFbPtr[x + i]];
             }
             trans[idx].length = MEM_PER_TRANS * 16;
             trans[idx].user = (void *)1;
@@ -423,7 +418,7 @@ void IRAM_ATTR spi_lcd_init()
 
     xSemaphoreGive(dispLock);
 
-    currFbPtr = heap_caps_malloc(320 * 240, MALLOC_CAP_32BIT);
+    currFbPtr = heap_caps_malloc(320 * 240, MALLOC_CAP_8BIT);
 
     printf("spi_lcd_init(): Starting display task.\n");
     xTaskCreatePinnedToCore(&displayTask, "display", 6000, NULL, 6, NULL, 1);
