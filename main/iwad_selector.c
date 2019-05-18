@@ -48,7 +48,8 @@ void iwad_selector(char **selected_iwad)
 	I_BeginDiskAccess();
 	if ((dir = opendir(I_DoomExeDir())) != NULL) {
 		while ((ent = readdir(dir)) != NULL) {
-			if (strcasecmp(ent->d_name, "prboom.wad") != 0) {
+			if (strcasecmp(ent->d_name, "prboom.wad") != 0 && 
+				strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".wad") == 0) {
 				memcpy(files[index++], ent->d_name, 64);
 			}
 		}
