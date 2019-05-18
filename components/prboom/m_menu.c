@@ -897,7 +897,7 @@ void M_DrawSave(void)
 //
 static void M_DoSave(int slot)
 {
-  sprintf(savegamestrings[slot], "Slot %d: Episode %d Map %d", slot, gameepisode, gamemap);
+  sprintf(savegamestrings[slot], "Slot %d:Episode %d Map %d", slot, gameepisode, gamemap);
   G_SaveGame (slot,savegamestrings[slot]);
   M_ClearMenus ();
 
