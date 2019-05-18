@@ -33,12 +33,11 @@ typedef struct
     uint8_t values[ODROID_INPUT_MAX];
 } odroid_gamepad_state;
 
-void odroid_input_gamepad_terminate();
-void odroid_input_gamepad_read(odroid_gamepad_state* out_state);
 odroid_gamepad_state odroid_input_read_raw();
-
 void gamepadInit(void);
 void gamepadPoll(void);
 
+volatile odroid_gamepad_state gamepad_state;
+volatile odroid_gamepad_state previous_gamepad_state;
 volatile int joyVal;
 #endif
