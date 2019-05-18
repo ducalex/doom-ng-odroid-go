@@ -56,6 +56,8 @@
 
 #include "rom/ets_sys.h"
 
+#include "spi_lcd.h"
+
 int cons_error_mask = -1-LO_INFO; /* all but LO_INFO when redir'd */
 int cons_output_mask = -1;        /* all output enabled */
 
@@ -127,5 +129,12 @@ void I_Error(const char *error, ...)
     MessageBox(con_hWnd,errmsg,"PrBoom",MB_OK | MB_TASKMODAL | MB_TOPMOST);
   }
 #endif
+
+  spi_lcd_fb_setPalette(NULL);
+  spi_lcd_fb_clear();
+  spi_lcd_fb_print(0, 0, "A fatal error occurred :(");
+  spi_lcd_fb_print(0, 50, errmsg);
+  spi_lcd_fb_flush();
+  
   I_SafeExit(-1);
 }

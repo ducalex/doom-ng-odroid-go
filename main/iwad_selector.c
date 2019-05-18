@@ -37,7 +37,7 @@ extern const char *I_DoomExeDir(void);
 
 extern volatile int joyVal;
 
-const char* iwad_selector()
+void iwad_selector(char **selected_iwad)
 {
 	DIR *dir;
 	struct dirent *ent;
@@ -74,8 +74,8 @@ const char* iwad_selector()
 					spi_lcd_fb_clear();
 					spi_lcd_fb_print(0, 0, "Starting Doom...");
 					spi_lcd_fb_flush();
-
-					return strdup(files[selected]);
+					*selected_iwad = strdup(files[selected]);
+					return;
 				}
 
 				prevJoyVal = joyVal;
@@ -96,6 +96,4 @@ const char* iwad_selector()
 			// vTaskDelay
 		}
 	}
-
-	return NULL;
 }

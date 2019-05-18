@@ -222,6 +222,7 @@ void Init_SD()
 			} else {
 					lprintf(LO_INFO, "Init_SD: Failed to initialize the card. %d\n", ret);
 			}
+			xSemaphoreGive(dispLock);
 			return;
 	}
 
