@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -40,14 +41,19 @@
 #define PIN_NUM_RST -1
 #define PIN_NUM_BCKL 14
 
+#define SCREEN_WIDTH 320
+#define SCREEN_HEIGHT 240
+
 static spi_device_handle_t spi;
 static uint8_t BacklightLevel = 75;
 static uint8_t *currFbPtr = NULL;
 
-static int16_t color_palette[256] = {0, 7 << 12, 7 << 5, 7};
+static int16_t color_palette[256];
 
 static uint8_t *displayFont;
 static propFont	fontChar;
+static uint8_t font_height, font_width;
+static bool enablePrintWrap = true;
 
 SemaphoreHandle_t dispSem = NULL;
 SemaphoreHandle_t dispLock = NULL;
@@ -231,7 +237,7 @@ void spi_lcd_fb_flush()
     spi_lcd_data(endpage, 2); //End page
     spi_lcd_cmd(0x2C); // Write
 
-    for (int x = 0; x < 320 * 240; x += MEM_PER_TRANS)
+    for (int x = 0; x < SCREEN_WIDTH * SCREEN_HEIGHT; x += MEM_PER_TRANS)
     {
         for (int i = 0; i < MEM_PER_TRANS; i++)
         {
@@ -269,9 +275,12 @@ void spi_lcd_fb_flush()
 }
 
 
-void spi_lcd_fb_palette(int16_t *palette)
+void spi_lcd_fb_setPalette(const int16_t *palette)
 {
-    memcpy(color_palette, palette, 512);
+    if (palette == NULL) {
+        palette = default_palette;
+    }
+    memcpy(color_palette, palette, 256 * 2);
 }
 
 
@@ -285,7 +294,7 @@ void spi_lcd_fb_setptr(uint8_t *buffer)
 void spi_lcd_fb_write(uint8_t *buffer)
 {
 //    xSemaphoreTake(dispLock, portMAX_DELAY);
-    memcpy(currFbPtr, buffer, 320 * 240);
+    memcpy(currFbPtr, buffer, SCREEN_WIDTH * SCREEN_HEIGHT);
 //    xSemaphoreGive(dispLock);
     //Theoretically, also should double-buffer the lcdpal array... ahwell.
     xSemaphoreGive(dispSem);
@@ -294,26 +303,17 @@ void spi_lcd_fb_write(uint8_t *buffer)
 
 void spi_lcd_fb_clear()
 {
-    memset(currFbPtr, 0, 320 * 240);
+    memset(currFbPtr, 0, SCREEN_WIDTH * SCREEN_HEIGHT);
 }
 
 
 void spi_lcd_fb_drawPixel(int x, int y, int color)
 {
-    currFbPtr[x*320 + y] = color;
+    currFbPtr[x * SCREEN_WIDTH + y] = color;
 }
 
 
-void spi_lcd_fb_setFont(uint8_t *font)
-{
-    int x_size = font[0];
-    int y_size = font[1];
-
-    displayFont = font;
-}
-
-
-static uint8_t getCharPtr(uint8_t c, bool fixed)
+static uint8_t getCharPtr(uint8_t c)
 {
     fontChar.dataPtr = 4;
     
@@ -338,9 +338,20 @@ static uint8_t getCharPtr(uint8_t c, bool fixed)
 }
 
 
+void spi_lcd_fb_setFont(const uint8_t *font)
+{
+    displayFont = font;
+
+    //font_width = font[0];
+    font_height = font[1];
+    getCharPtr('@');
+    font_width = fontChar.width;
+}
+
+
 int spi_lcd_fb_drawChar(int x, int y, uint8_t c, uint16_t color)
 {
-    if (!getCharPtr(c, false)) {
+    if (!getCharPtr(c)) {
         return 0;
     }
 
@@ -375,13 +386,23 @@ void spi_lcd_fb_print(int x, int y, char *string)
 {
     for (int i = 0; i < strlen(string); i++) {
         x += spi_lcd_fb_drawChar(x, y, (uint8_t) string[i], 2);
+        if (enablePrintWrap && x >= (SCREEN_WIDTH - font_width)) {
+            y += font_height + 5;
+            x = 0;
+        }
     }
 }
 
 
-void spi_lcd_fb_printf(int x, int y, char *string, ...)
+void spi_lcd_fb_printf(int x, int y, char *format, ...)
 {
-    
+  char buffer[1500];
+  va_list argptr;
+  va_start(argptr, format);
+  vsprintf(buffer, format, argptr);
+  va_end(argptr);
+
+  spi_lcd_fb_print(x, y, buffer);
 }
 
 
@@ -432,13 +453,14 @@ void IRAM_ATTR spi_lcd_init()
     }
 
     spi_lcd_fb_setFont(tft_Dejavu24);
+    spi_lcd_fb_setPalette(NULL);
 
     //Enable backlight
     backlight_init();
 
     xSemaphoreGive(dispLock);
 
-    currFbPtr = heap_caps_calloc(1, 320 * 240, MALLOC_CAP_8BIT);
+    currFbPtr = heap_caps_calloc(1, SCREEN_WIDTH * SCREEN_HEIGHT, MALLOC_CAP_8BIT);
 
     printf("spi_lcd_init(): Starting display task.\n");
     xTaskCreatePinnedToCore(&displayTask, "display", 6000, NULL, 6, NULL, 1);

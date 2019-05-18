@@ -61,7 +61,6 @@ int use_fullscreen = 0;
 int use_doublebuffer = 0;
 int16_t lcdpal[256];
 
-static uint16_t *screena, *screenb;
 unsigned char *screenbuf;
 
 void I_StartTic(void)
@@ -75,10 +74,6 @@ static void I_InitInputs(void)
   gamepadInit();
 }
 
-
-static void I_UploadNewPalette(int pal)
-{
-}
 
 //////////////////////////////////////////////////////////////////////////////
 // Graphics API
@@ -136,7 +131,7 @@ void I_SetPalette (int pal)
 //		lcdpal[i]=v;
 		palette += 3;
 	}
-  spi_lcd_fb_palette(lcdpal);
+  spi_lcd_fb_setPalette(lcdpal);
 	W_UnlockLumpNum(pplump);
 }
 
