@@ -845,7 +845,8 @@ void M_ReadSaveStrings(void)
     G_SaveGameName(name,sizeof(name),i,false);
 
     if (fp = fopen(name, "rb")) {
-      sprintf(&savegamestrings[i], "Slot %d", i);
+      fread(&savegamestrings[i], SAVESTRINGSIZE, 1, fp);
+      //sprintf(&savegamestrings[i], "Slot %d", i);
       fclose(fp);
       LoadMenue[i].status = 1;
     } else {
@@ -896,6 +897,7 @@ void M_DrawSave(void)
 //
 static void M_DoSave(int slot)
 {
+  sprintf(savegamestrings[slot], "Slot %d: Episode %d Map %d", slot, gameepisode, gamemap);
   G_SaveGame (slot,savegamestrings[slot]);
   M_ClearMenus ();
 

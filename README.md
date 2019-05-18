@@ -60,8 +60,6 @@ VOLUME+RIGHT |
 
 - Fix screen tearing. Locking the framebuffer would fix the issue but it drops the framerate significantly.
 
-- Add IWad name to savegame files to avoid conflict and confusion.
-
 - Make it possible to delete savegames.
 
 
