@@ -31,7 +31,7 @@ START+LEFT  | Sound down
 START+RIGHT | Sound up
 
 
-Cheats:
+### Cheats:
 
 Key | Action
 -|-
@@ -50,7 +50,7 @@ VOLUME+RIGHT |
 
 - Proper mixing. Currently the music is mixed in the audio stream as if it were a sound effect,  it causes the volume to go down when actual sound effects are playing.
 
-- Fix the options menu and support its sound levels. (Mostly done but not yet gamepad compatible)
+- Fix the options menu and support its sound levels. (Mostly done but not yet gamepad compatible).
 
 - Cheat menu instead of the weird key combinations.
 
@@ -59,6 +59,11 @@ VOLUME+RIGHT |
 - Fix the memory allocation failures due to memory fragmentation (especially when switching levels)
 
 - Fix screen tearing. Locking the framebuffer would fix the issue but it drops the framerate significantly.
+
+- Add IWad name to savegame files to avoid conflict and confusion.
+
+- Make it possible to delete savegames.
+
 
 # Compilation
 
