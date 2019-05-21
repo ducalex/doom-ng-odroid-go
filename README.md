@@ -13,7 +13,7 @@ This is an improvement of [doom-ng-odroid-go](https://github.com/mad-ady/doom-ng
 
 # Usage
 
-Copy Doom-*.fw to your sdcard folder `odroid/firmware` and DOOM.WAD to `roms/doom`. Power up the Odroid GO while holding B. Then flash Doom from the menu. You can add more than one WAD at a time, a prompt will be shown on power up.
+Copy Doom-*.fw to your sdcard folder `odroid/firmware` and PRBOOM.WAD and DOOM.WAD to `roms/doom`. Power up the Odroid GO while holding B. Then flash Doom from the menu. You can add more than one WAD at a time, a prompt will be shown on power up.
 
 # Controls
 
