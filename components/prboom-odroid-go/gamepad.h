@@ -31,13 +31,16 @@ enum
 typedef struct
 {
     uint8_t values[ODROID_INPUT_MAX];
+    uint8_t previous[ODROID_INPUT_MAX];
+    uint8_t debounce[ODROID_INPUT_MAX];
+    uint8_t realtime[ODROID_INPUT_MAX];
 } odroid_gamepad_state;
 
-odroid_gamepad_state odroid_input_read_raw();
+void odroid_input_read_raw(uint8_t *);
 void gamepadInit(void);
 void gamepadPoll(void);
+uint8_t *gamepadReadChanged();
 
 volatile odroid_gamepad_state gamepad_state;
-volatile odroid_gamepad_state previous_gamepad_state;
 volatile int joyVal;
 #endif

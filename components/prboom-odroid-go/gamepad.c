@@ -72,12 +72,11 @@ static int cheatCurrentLevel = 1;
 extern int snd_volume;
 volatile int joyVal = 0;
 
-volatile odroid_gamepad_state gamepad_state;
-volatile odroid_gamepad_state previous_gamepad_state;
+volatile odroid_gamepad_state gamepad_state = {0};
 static bool input_gamepad_initialized = false;
 
 
-void ApplyCheat(char *code)
+static void ApplyCheat(char *code)
 {
 	for (int i = 0; i < strlen(code); i++){
 		M_FindCheats(code[i]);
@@ -85,100 +84,96 @@ void ApplyCheat(char *code)
 }
 
 
-int JoystickRead()
+static int JoystickRead()
 {
-	if (!input_gamepad_initialized) return 0;
-
-	odroid_gamepad_state state = gamepad_state;
-
 	int result = 0;
 
-	if (!state.values[ODROID_INPUT_UP])
+	if (!gamepad_state.values[ODROID_INPUT_UP])
 			result |= 0x10; //key_up
 
-	if (!state.values[ODROID_INPUT_DOWN])
+	if (!gamepad_state.values[ODROID_INPUT_DOWN])
 			result |= 0x40; //key_down
 
-	if (!state.values[ODROID_INPUT_LEFT])
+	if (!gamepad_state.values[ODROID_INPUT_LEFT])
 			result |= 0x80; //key_left
 
-	if (!state.values[ODROID_INPUT_RIGHT])
+	if (!gamepad_state.values[ODROID_INPUT_RIGHT])
 			result |= 0x20; //key_right
 
-	if (!state.values[ODROID_INPUT_A])
+	if (!gamepad_state.values[ODROID_INPUT_A])
 			result |= 0x2000; //key_fire, key_menu_enter
 
-	if (!state.values[ODROID_INPUT_START])
+	if (!gamepad_state.values[ODROID_INPUT_START])
 			result |= 0x4000; //key_use
 
-	if (!state.values[ODROID_INPUT_MENU])
+	if (!gamepad_state.values[ODROID_INPUT_MENU])
 			result |= 0x8; //key_escape
 
-	if (!state.values[ODROID_INPUT_SELECT])
+	if (!gamepad_state.values[ODROID_INPUT_SELECT])
 			result |= 0x1000; //key_weapontoggle
 
-	if (!state.values[ODROID_INPUT_VOLUME])
+	if (!gamepad_state.values[ODROID_INPUT_VOLUME])
 			result |= 0x1; //key_map
 
-	if (!state.values[ODROID_INPUT_B]){
+	if (!gamepad_state.values[ODROID_INPUT_B]){
 			result |= 0x200; //key_strafe
 			result |= 0x100; //key_run
 	}
 
-	if (state.values[ODROID_INPUT_START]) {
-		if (state.values[ODROID_INPUT_UP] && !previous_gamepad_state.values[ODROID_INPUT_UP]) { // brightness up
+	if (gamepad_state.values[ODROID_INPUT_START]) {
+		if (gamepad_state.values[ODROID_INPUT_UP] && !gamepad_state.previous[ODROID_INPUT_UP]) { // brightness up
 			backlight_percentage_set(backlight_percentage_get() + 25);
 			doom_printf("Brightness: %d", backlight_percentage_get());
 		}
-		if (state.values[ODROID_INPUT_DOWN] && !previous_gamepad_state.values[ODROID_INPUT_DOWN]) { // brightness down
+		if (gamepad_state.values[ODROID_INPUT_DOWN] && !gamepad_state.previous[ODROID_INPUT_DOWN]) { // brightness down
 			backlight_percentage_set(backlight_percentage_get() - 25);
 			doom_printf("Brightness: %d", backlight_percentage_get());
 		}
-		if (state.values[ODROID_INPUT_RIGHT] && !previous_gamepad_state.values[ODROID_INPUT_RIGHT]) { // volume up
+		if (gamepad_state.values[ODROID_INPUT_RIGHT] && !gamepad_state.previous[ODROID_INPUT_RIGHT]) { // volume up
 			if (++snd_volume > 15) snd_volume = 15;
 			doom_printf("Volume: %d", snd_volume);
 		}
-		if (state.values[ODROID_INPUT_LEFT] && !previous_gamepad_state.values[ODROID_INPUT_LEFT]) { // volume down
+		if (gamepad_state.values[ODROID_INPUT_LEFT] && !gamepad_state.previous[ODROID_INPUT_LEFT]) { // volume down
 			if (--snd_volume < 0) snd_volume = 0;
 			doom_printf("Volume: %d", snd_volume);
 		}
 		result |= (0x10 | 0x20 | 0x40 | 0x80); // cancel arrow keys
 	}
 
-	if (state.values[ODROID_INPUT_MENU]) {
-		if (state.values[ODROID_INPUT_UP] && !previous_gamepad_state.values[ODROID_INPUT_UP]) {
+	if (gamepad_state.values[ODROID_INPUT_MENU]) {
+		if (gamepad_state.values[ODROID_INPUT_UP] && !gamepad_state.previous[ODROID_INPUT_UP]) {
 			// Invulnerability
 			ApplyCheat("iddqd");
 		}
-		if (state.values[ODROID_INPUT_DOWN] && !previous_gamepad_state.values[ODROID_INPUT_DOWN]) {
+		if (gamepad_state.values[ODROID_INPUT_DOWN] && !gamepad_state.previous[ODROID_INPUT_DOWN]) {
 			//Full megaarmor protection (200%), all weapons, full ammo, and all the keys
 			ApplyCheat("idkfa");
 		}
-		if (state.values[ODROID_INPUT_LEFT] && !previous_gamepad_state.values[ODROID_INPUT_LEFT]) {
+		if (gamepad_state.values[ODROID_INPUT_LEFT] && !gamepad_state.previous[ODROID_INPUT_LEFT]) {
 			//No clipping
 			ApplyCheat("idclip");
 		}
-		if (state.values[ODROID_INPUT_RIGHT] && !previous_gamepad_state.values[ODROID_INPUT_RIGHT]) {
+		if (gamepad_state.values[ODROID_INPUT_RIGHT] && !gamepad_state.previous[ODROID_INPUT_RIGHT]) {
 			//200% health
 			ApplyCheat("idbeholdh");
 		}
 		result |= (0x10 | 0x20 | 0x40 | 0x80); // cancel arrow keys
 	}
 
-	if (state.values[ODROID_INPUT_VOLUME]) {
-		if (state.values[ODROID_INPUT_UP] && !previous_gamepad_state.values[ODROID_INPUT_UP]) {
+	if (gamepad_state.values[ODROID_INPUT_VOLUME]) {
+		if (gamepad_state.values[ODROID_INPUT_UP] && !gamepad_state.previous[ODROID_INPUT_UP]) {
 			//Temporary light
 			ApplyCheat("idbeholdl");
 		}
-		if (state.values[ODROID_INPUT_DOWN] && !previous_gamepad_state.values[ODROID_INPUT_DOWN]) {
+		if (gamepad_state.values[ODROID_INPUT_DOWN] && !gamepad_state.previous[ODROID_INPUT_DOWN]) {
 			//Temporary berserk
 			ApplyCheat("idbeholds");
 		}
-		if (state.values[ODROID_INPUT_LEFT] && !previous_gamepad_state.values[ODROID_INPUT_LEFT]) {
+		if (gamepad_state.values[ODROID_INPUT_LEFT] && !gamepad_state.previous[ODROID_INPUT_LEFT]) {
 			//Temporary invisibility
 			ApplyCheat("idbeholdi");
 		}
-		if (state.values[ODROID_INPUT_RIGHT] && !previous_gamepad_state.values[ODROID_INPUT_RIGHT]) {
+		if (gamepad_state.values[ODROID_INPUT_RIGHT] && !gamepad_state.previous[ODROID_INPUT_RIGHT]) {
 			//Warp to different levels
 			char code[9];
 			if(cheatCurrentLevel == 1 && gamemission == doom){
@@ -201,59 +196,51 @@ int JoystickRead()
 	return result;
 }
 
-odroid_gamepad_state odroid_input_read_raw()
+
+void odroid_input_read_raw(uint8_t *values)
 {
-    odroid_gamepad_state state = {0};
+	memset(values, 0, ODROID_INPUT_MAX);
 
     int joyX = adc1_get_raw(ODROID_GAMEPAD_IO_X);
     int joyY = adc1_get_raw(ODROID_GAMEPAD_IO_Y);
 
     if (joyX > 2048 + 1024)
-        state.values[ODROID_INPUT_LEFT] = 1;
+        values[ODROID_INPUT_LEFT] = 1;
     else if (joyX > 1024)
-        state.values[ODROID_INPUT_RIGHT] = 1;
+        values[ODROID_INPUT_RIGHT] = 1;
 
     if (joyY > 2048 + 1024)
-        state.values[ODROID_INPUT_UP] = 1;
+        values[ODROID_INPUT_UP] = 1;
     else if (joyY > 1024)
-        state.values[ODROID_INPUT_DOWN] = 1;
+        values[ODROID_INPUT_DOWN] = 1;
 
-    state.values[ODROID_INPUT_SELECT] = !(gpio_get_level(ODROID_GAMEPAD_IO_SELECT));
-    state.values[ODROID_INPUT_START] = !(gpio_get_level(ODROID_GAMEPAD_IO_START));
+    values[ODROID_INPUT_SELECT] = !(gpio_get_level(ODROID_GAMEPAD_IO_SELECT));
+    values[ODROID_INPUT_START] = !(gpio_get_level(ODROID_GAMEPAD_IO_START));
 
-    state.values[ODROID_INPUT_A] = !(gpio_get_level(ODROID_GAMEPAD_IO_A));
-    state.values[ODROID_INPUT_B] = !(gpio_get_level(ODROID_GAMEPAD_IO_B));
+    values[ODROID_INPUT_A] = !(gpio_get_level(ODROID_GAMEPAD_IO_A));
+    values[ODROID_INPUT_B] = !(gpio_get_level(ODROID_GAMEPAD_IO_B));
 
-    state.values[ODROID_INPUT_MENU] = !(gpio_get_level(ODROID_GAMEPAD_IO_MENU));
-    state.values[ODROID_INPUT_VOLUME] = !(gpio_get_level(ODROID_GAMEPAD_IO_VOLUME));
-
-    return state;
+    values[ODROID_INPUT_MENU] = !(gpio_get_level(ODROID_GAMEPAD_IO_MENU));
+    values[ODROID_INPUT_VOLUME] = !(gpio_get_level(ODROID_GAMEPAD_IO_VOLUME));
 }
+
 
 static void odroid_input_task(void *arg)
 {
 	lprintf(LO_INFO, "gamepad: Input task started.\n");
 
-    // Initialize state
-	uint8_t debounce[ODROID_INPUT_MAX] = {0};
-
     while(1)
     {
-        // Shift current values
-        for(int i = 0; i < ODROID_INPUT_MAX; ++i)
-		{
-			debounce[i] <<= 1;
-		}
-
         // Read hardware
-        odroid_gamepad_state state = odroid_input_read_raw();
+        odroid_input_read_raw(&gamepad_state.realtime);
 
         // Debounce
-
         for(int i = 0; i < ODROID_INPUT_MAX; ++i)
 		{
-            debounce[i] |= state.values[i] ? 1 : 0;
-            uint8_t val = debounce[i] & 0x03; //0x0f;
+			gamepad_state.debounce[i] <<= 1;
+
+            gamepad_state.debounce[i] |= gamepad_state.realtime[i] ? 1 : 0;
+            uint8_t val = gamepad_state.debounce[i] & 0x03; //0x0f;
             switch (val) {
                 case 0x00:
                     gamepad_state.values[i] = 0;
@@ -271,7 +258,7 @@ static void odroid_input_task(void *arg)
 
 		joyVal = JoystickRead();
 
-        previous_gamepad_state = gamepad_state;
+        memcpy(gamepad_state.previous, gamepad_state.values, ODROID_INPUT_MAX);
 
         // delay
         vTaskDelay(20 / portTICK_PERIOD_MS);
