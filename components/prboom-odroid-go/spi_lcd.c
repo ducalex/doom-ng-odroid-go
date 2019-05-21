@@ -59,7 +59,7 @@ SemaphoreHandle_t dispSem = NULL;
 SemaphoreHandle_t dispLock = NULL;
 
 #define NO_SIM_TRANS 5        //Amount of SPI transfers to queue in parallel
-#define MEM_PER_TRANS 320 * 2 //in 16-bit words
+#define MEM_PER_TRANS SCREEN_WIDTH * 2 //in 16-bit words
 
 // LCD initialization commands
 typedef struct
@@ -384,25 +384,27 @@ int spi_lcd_fb_drawChar(int x, int y, uint8_t c, uint16_t color)
 
 void spi_lcd_fb_print(int x, int y, char *string)
 {
+    int orig_x = x, orig_y = y;
+    
     for (int i = 0; i < strlen(string); i++) {
-        x += spi_lcd_fb_drawChar(x, y, (uint8_t) string[i], 2);
-        if (enablePrintWrap && x >= (SCREEN_WIDTH - font_width)) {
+        if ((enablePrintWrap && x >= (SCREEN_WIDTH - font_width)) || string[i] == '\n') {
             y += font_height + 5;
-            x = 0;
+            x = orig_x;
         }
+        x += spi_lcd_fb_drawChar(x, y, (uint8_t) string[i], 2);
     }
 }
 
 
 void spi_lcd_fb_printf(int x, int y, char *format, ...)
 {
-  char buffer[1500];
-  va_list argptr;
-  va_start(argptr, format);
-  vsprintf(buffer, format, argptr);
-  va_end(argptr);
-
-  spi_lcd_fb_print(x, y, buffer);
+    char buffer[1024];
+    va_list argptr;
+    va_start(argptr, format);
+    vsprintf(buffer, format, argptr);
+    va_end(argptr);
+    
+    spi_lcd_fb_print(x, y, buffer);
 }
 
 
