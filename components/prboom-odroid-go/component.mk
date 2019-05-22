@@ -8,6 +8,6 @@
 #
 
 COMPONENT_ADD_INCLUDEDIRS += ../prboom
-
+CFLAGS += -O3
 #include $(IDF_PATH)/make/component_common.mk
 
