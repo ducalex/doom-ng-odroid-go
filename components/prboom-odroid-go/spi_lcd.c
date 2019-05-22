@@ -50,6 +50,8 @@ static uint8_t *currFbPtr = NULL;
 
 static int16_t color_palette[256];
 
+static volatile bool sending = false;
+
 static uint8_t *displayFont;
 static propFont	fontChar;
 static uint8_t font_height, font_width;
@@ -203,6 +205,8 @@ void spi_lcd_fb_flush()
     static spi_transaction_t trans[NO_SIM_TRANS];
     static bool initialized = false;
 
+    sending = true;
+
     if (!initialized) {  // Initialize parallel transactions
         for (int x = 0; x < NO_SIM_TRANS; x++)
         {
@@ -237,6 +241,8 @@ void spi_lcd_fb_flush()
     spi_lcd_data(endpage, 2); //End page
     spi_lcd_cmd(0x2C); // Write
 
+    //xSemaphoreTake(fbLock, portMAX_DELAY);
+
     for (int x = 0; x < SCREEN_WIDTH * SCREEN_HEIGHT; x += MEM_PER_TRANS)
     {
         for (int i = 0; i < MEM_PER_TRANS; i++)
@@ -264,6 +270,8 @@ void spi_lcd_fb_flush()
         }
     }
 
+    //xSemaphoreGive(fbLock);
+
     while (inProgress)
     {
         ret = spi_device_get_trans_result(spi, &rtrans, portMAX_DELAY);
@@ -272,6 +280,8 @@ void spi_lcd_fb_flush()
     }
 
     xSemaphoreGive(dispLock);
+    
+    sending = false;
 }
 
 
@@ -293,10 +303,8 @@ void spi_lcd_fb_setptr(uint8_t *buffer)
 
 void spi_lcd_fb_write(uint8_t *buffer)
 {
-//    xSemaphoreTake(dispLock, portMAX_DELAY);
+    while (sending); // wait until previous frame is done sending
     memcpy(currFbPtr, buffer, SCREEN_WIDTH * SCREEN_HEIGHT);
-//    xSemaphoreGive(dispLock);
-    //Theoretically, also should double-buffer the lcdpal array... ahwell.
     xSemaphoreGive(dispSem);
 }
 
