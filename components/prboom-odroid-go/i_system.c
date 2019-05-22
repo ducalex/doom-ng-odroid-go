@@ -217,13 +217,13 @@ void Init_SD()
 	esp_err_t ret = esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
 
 	if (ret != ESP_OK) {
-			if (ret == ESP_FAIL) {
-					lprintf(LO_INFO, "Init_SD: Failed to mount filesystem.\n");
-			} else {
-					lprintf(LO_INFO, "Init_SD: Failed to initialize the card. %d\n", ret);
-			}
-			xSemaphoreGive(dispLock);
-			return;
+		xSemaphoreGive(dispLock);
+
+		if (ret == ESP_FAIL) {
+			I_Error("Init_SD: Failed to mount filesystem.");
+		} else {
+			I_Error("Init_SD: Failed to initialize the card. (%d)", ret);
+		}
 	}
 
 	// Create the save dir. It will fail silently if it exists
@@ -246,9 +246,6 @@ int I_Open(const char *fname, int flags)
 	lprintf(LO_INFO, "I_Open: Opening File: %s\n", fname);
 	
 	xSemaphoreTake(dispLock, portMAX_DELAY);
-	//char filepath[256];
-	//sprintf(filepath, "%s/%s", I_DoomExeDir(), fname);
-	//FILE *handle = fopen(filepath, "rb");
 	FILE *handle = fopen(fname, "rb");
 	xSemaphoreGive(dispLock);
 
@@ -358,8 +355,7 @@ static int getFreeMMapHandle()
 		n--;
 	}
 	if (n==0) {
-		lprintf(LO_ERROR, "getFreeMMapHandle: More mmaps than NO_MMAP_HANDLES!\n");
-		exit(0);
+		I_Error("getFreeMMapHandle: More mmaps than NO_MMAP_HANDLES!");
 	}
 	
 	if (mmapHandle[nextHandle].addr) {
@@ -410,7 +406,7 @@ void *I_Mmap(void *addr, size_t length, int prot, int flags, int ifd, off_t offs
 	retaddr = malloc(length);
 	if (!retaddr)
 	{
-		lprintf(LO_ERROR, "I_Mmap: No free address space. Cleaning up unused cached mmaps...\n");
+		lprintf(LO_INFO, "I_Mmap: No free address space. Cleaning up unused cached mmaps...\n");
 		freeUnusedMmaps();
 		retaddr = malloc(length);
 	}
@@ -425,8 +421,7 @@ void *I_Mmap(void *addr, size_t length, int prot, int flags, int ifd, off_t offs
 		mmapHandle[i].offset = offset;
 		mmapHandle[i].ifd = ifd;
 	} else {
-		lprintf(LO_ERROR, "I_Mmap: Can't mmap offset: %d (len=%d)!\n", (int)offset, length);
-		return NULL;
+		I_Error("I_Mmap: Can't mmap offset: %d (len=%d)!", (int)offset, length);
 	}
 
 	return retaddr;
@@ -442,6 +437,6 @@ int I_Munmap(void *addr, size_t length)
 		}
 	}
 
-	lprintf(LO_ERROR, "I_Mmap: Freeing non-mmapped address/len combo!\n");
+	I_Error("I_Mmap: Freeing non-mmapped address/len combo!");
 	exit(0);
 }
