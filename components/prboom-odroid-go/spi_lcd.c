@@ -50,8 +50,6 @@ static uint8_t *currFbPtr = NULL;
 
 static int16_t color_palette[256];
 
-static volatile bool sending = false;
-
 static uint8_t *displayFont;
 static propFont	fontChar;
 static uint8_t font_height, font_width;
@@ -59,6 +57,7 @@ static bool enablePrintWrap = true;
 
 SemaphoreHandle_t dispSem = NULL;
 SemaphoreHandle_t dispLock = NULL;
+SemaphoreHandle_t fbLock = NULL;
 
 #define NO_SIM_TRANS 5        //Amount of SPI transfers to queue in parallel
 #define MEM_PER_TRANS SCREEN_WIDTH * 2 //in 16-bit words
@@ -205,8 +204,6 @@ void spi_lcd_fb_flush()
     static spi_transaction_t trans[NO_SIM_TRANS];
     static bool initialized = false;
 
-    sending = true;
-
     if (!initialized) {  // Initialize parallel transactions
         for (int x = 0; x < NO_SIM_TRANS; x++)
         {
@@ -241,7 +238,7 @@ void spi_lcd_fb_flush()
     spi_lcd_data(endpage, 2); //End page
     spi_lcd_cmd(0x2C); // Write
 
-    //xSemaphoreTake(fbLock, portMAX_DELAY);
+    xSemaphoreTake(fbLock, portMAX_DELAY);
 
     for (int x = 0; x < SCREEN_WIDTH * SCREEN_HEIGHT; x += MEM_PER_TRANS)
     {
@@ -270,7 +267,7 @@ void spi_lcd_fb_flush()
         }
     }
 
-    //xSemaphoreGive(fbLock);
+    xSemaphoreGive(fbLock);
 
     while (inProgress)
     {
@@ -280,8 +277,6 @@ void spi_lcd_fb_flush()
     }
 
     xSemaphoreGive(dispLock);
-    
-    sending = false;
 }
 
 
@@ -303,8 +298,12 @@ void spi_lcd_fb_setptr(uint8_t *buffer)
 
 void spi_lcd_fb_write(uint8_t *buffer)
 {
-    while (sending); // wait until previous frame is done sending
+    //int64_t time = esp_timer_get_time();
+    //while (sending); // wait until previous frame is done sending
+    xSemaphoreTake(fbLock, portMAX_DELAY); // wait until previous frame is done sending
+    //printf("Frame delayed: %d\n", (int)(esp_timer_get_time() - time));
     memcpy(currFbPtr, buffer, SCREEN_WIDTH * SCREEN_HEIGHT);
+    xSemaphoreGive(fbLock);
     xSemaphoreGive(dispSem);
 }
 
@@ -420,6 +419,7 @@ void IRAM_ATTR spi_lcd_init()
 {
     dispSem = xSemaphoreCreateBinary();
     dispLock = xSemaphoreCreateMutex();
+    fbLock = xSemaphoreCreateMutex();
 
     esp_err_t ret;
 
