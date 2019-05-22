@@ -83,6 +83,8 @@
 #include "sdmmc_cmd.h"
 #include "esp_timer.h"
 
+#include "odroid_util.h"
+
 #ifdef __GNUG__
 #pragma implementation "i_system.h"
 #endif
@@ -91,9 +93,6 @@
 #define PIN_NUM_MOSI 23
 #define PIN_NUM_CLK  18
 #define PIN_NUM_CS 22
-
-extern SemaphoreHandle_t dispLock;
-//SemaphoreHandle_t dmaChannel2Sem;
 
 static bool init_SD = false;
 static int nextHandle = 0;
@@ -193,8 +192,6 @@ void Init_SD()
 {
 	if (init_SD == true) return;
 
-	xSemaphoreTake(dispLock, portMAX_DELAY);
-
 	sdmmc_host_t host = SDSPI_HOST_DEFAULT();
 	host.slot = HSPI_HOST; // HSPI_HOST;
 	host.max_freq_khz = SDMMC_FREQ_DEFAULT;
@@ -214,11 +211,12 @@ void Init_SD()
 	};
 
 	sdmmc_card_t* card;
+
+	odroid_spi_bus_acquire();
 	esp_err_t ret = esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
+	odroid_spi_bus_release();
 
 	if (ret != ESP_OK) {
-		xSemaphoreGive(dispLock);
-
 		if (ret == ESP_FAIL) {
 			I_Error("Init_SD: Failed to mount filesystem.");
 		} else {
@@ -227,12 +225,11 @@ void Init_SD()
 	}
 
 	// Create the save dir. It will fail silently if it exists
+	odroid_spi_bus_acquire();
 	mkdir(I_DoomSaveDir(), 0755);
+	odroid_spi_bus_release();
 
-	//sdmmc_card_print_info(stdout, card);
 	init_SD = true;
-
-	xSemaphoreGive(dispLock);
 
 	lprintf(LO_INFO, "Init_SD: SD card opened.\n");
 }
@@ -245,9 +242,9 @@ int I_Open(const char *fname, int flags)
 
 	lprintf(LO_INFO, "I_Open: Opening File: %s\n", fname);
 	
-	xSemaphoreTake(dispLock, portMAX_DELAY);
+	odroid_spi_bus_acquire();
 	FILE *handle = fopen(fname, "rb");
-	xSemaphoreGive(dispLock);
+	odroid_spi_bus_release();
 
 	if (!handle) {
 		lprintf(LO_INFO, "I_Open: open %s failed\n", fname);	
@@ -260,17 +257,17 @@ int I_Open(const char *fname, int flags)
 
 void I_Read(int handle, void* vbuf, size_t sz)
 {
-	xSemaphoreTake(dispLock, portMAX_DELAY);
+	odroid_spi_bus_acquire();
 	
 	for (int i = 0; i < 20; i++) {
 		if (fread(vbuf, sz, 1, handle) == 1) {
-			xSemaphoreGive(dispLock);
+			odroid_spi_bus_release();
 			return;
 		}
 		lprintf(LO_INFO, "Error Reading %d bytes\n", (int)sz);
 	}
 	
-	xSemaphoreGive(dispLock);
+	odroid_spi_bus_release();
 
 	I_Error("I_Read: Error Reading %d bytes after 20 tries", (int)sz);
 }
@@ -278,9 +275,9 @@ void I_Read(int handle, void* vbuf, size_t sz)
 
 int I_Lseek(int handle, off_t offset, int whence)
 {
-	xSemaphoreTake(dispLock, portMAX_DELAY);
+	odroid_spi_bus_acquire();
 	int seeked = fseek(handle, offset, whence);
-	xSemaphoreGive(dispLock);
+	odroid_spi_bus_release();
 	
 	return seeked;
 }
@@ -288,10 +285,15 @@ int I_Lseek(int handle, off_t offset, int whence)
 
 int I_Filelength(int handle)
 {
-  struct stat fileinfo;
-  if (fstat(handle, &fileinfo) == -1)
-    I_Error("I_Filelength: %s", strerror(errno));
-  return fileinfo.st_size;
+	struct stat fileinfo;
+	odroid_spi_bus_acquire();
+	int ret = fstat(handle, &fileinfo);
+	odroid_spi_bus_release();
+
+	if (ret == -1)
+		I_Error("I_Filelength: %s", strerror(errno));
+
+	return fileinfo.st_size;
 }
 
 
@@ -299,9 +301,9 @@ void I_Close(int handle)
 {
 	lprintf(LO_INFO, "I_Open: Closing File: %d\n", handle);
 	
-	xSemaphoreTake(dispLock, portMAX_DELAY);
+	odroid_spi_bus_acquire();
 	fclose(handle);
-	xSemaphoreGive(dispLock);
+	odroid_spi_bus_release();
 }
 
 
@@ -310,7 +312,7 @@ char* I_FindFile(const char* fname, const char* ext)
 	char filepath[256];
 	char *ret = NULL;
 
-	xSemaphoreTake(dispLock, portMAX_DELAY);
+	odroid_spi_bus_acquire();
 	sprintf(filepath, "%s/%s", I_DoomExeDir(), fname);
 	lprintf(LO_INFO, "Looking for file: %s...", fname);
 	if (access( filepath, R_OK ) != -1) {
@@ -319,7 +321,7 @@ char* I_FindFile(const char* fname, const char* ext)
 	} else {
 		lprintf(LO_INFO, "Not found.\n");
 	}
-	xSemaphoreGive(dispLock);
+	odroid_spi_bus_release();
 	
 	return ret;
 }
@@ -330,17 +332,15 @@ char* I_FindFile(const char* fname, const char* ext)
 
 void I_BeginDiskAccess(void)
 {
-	lprintf(LO_INFO, "I_BeginDiskAccess: locking display\n");
-	xSemaphoreTake(dispLock, portMAX_DELAY);
-	gpio_set_level(GPIO_NUM_2, 1);
+	odroid_spi_bus_acquire();
+	odroid_system_led_set(1);
 }
 
 
 void I_EndDiskAccess(void)
 {
-	lprintf(LO_INFO, "I_EndDiskAccess: unlocking display\n");
-	xSemaphoreGive(dispLock);
-	gpio_set_level(GPIO_NUM_2, 0);
+	odroid_spi_bus_release();
+	odroid_system_led_set(0);
 }
 
 

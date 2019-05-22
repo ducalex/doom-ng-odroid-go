@@ -1,5 +1,10 @@
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
 #include "esp_heap_caps.h"
 #include "odroid_util.h"
+
+static SemaphoreHandle_t spiLock = NULL;
 
 size_t free_bytes_total()
 {
@@ -22,118 +27,42 @@ size_t free_bytes_spiram()
   return info.total_free_bytes;
 }
 
+void odroid_system_setup()
+{
+    // SPI
+    spiLock = xSemaphoreCreateMutex();
 
-#if 0
+    // LED
+	gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
+	gpio_set_level(GPIO_NUM_2, 0);
+}
+
 void odroid_system_led_set(int value)
 {
-    if (!system_initialized)
-    {
-        printf("odroid_system_init not called before use.\n");
-        abort();
-    }
-
     gpio_set_level(GPIO_NUM_2, value);
 }
 
-
-int odroid_input_battery_level_read
-void odroid_system_sleep
-
-
-
-size_t odroid_sdcard_copy_file_to_memory(const char* path, void* ptr)
+void odroid_system_sleep()
 {
-    size_t ret = 0;
 
-    if (!isOpen)
-    {
-        printf("odroid_sdcard_copy_file_to_memory: not open.\n");
-    }
-    else
-    {
-        if (!ptr)
-        {
-            printf("odroid_sdcard_copy_file_to_memory: ptr is null.\n");
-        }
-        else
-        {
-            FILE* f = fopen(path, "rb");
-            if (f == NULL)
-            {
-                printf("odroid_sdcard_copy_file_to_memory: fopen failed.\n");
-            }
-            else
-            {
-                // copy
-                const size_t BLOCK_SIZE = 512;
-                while(true)
-                {
-                    __asm__("memw");
-                    size_t count = fread((uint8_t*)ptr + ret, 1, BLOCK_SIZE, f);
-                    __asm__("memw");
-
-                    ret += count;
-
-                    if (count < BLOCK_SIZE) break;
-                }
-            }
-        }
-    }
-
-    return ret;
 }
 
-char* odroid_sdcard_create_savefile_path(const char* base_path, const char* fileName)
+int odroid_system_battery_level()
 {
-    char* result = NULL;
-
-    if (!base_path) abort();
-    if (!fileName) abort();
-
-    //printf("%s: base_path='%s', fileName='%s'\n", __func__, base_path, fileName);
-
-    // Determine folder
-    char* extension = fileName + strlen(fileName); // place at NULL terminator
-    while (extension != fileName)
-    {
-        if (*extension == '.')
-        {
-            ++extension;
-            break;
-        }
-        --extension;
-    }
-
-    if (extension == fileName)
-    {
-        printf("%s: File extention not found.\n", __func__);
-        abort();
-    }
-
-    //printf("%s: extension='%s'\n", __func__, extension);
-
-    const char* DATA_PATH = "/odroid/data/";
-    const char* SAVE_EXTENSION = ".sav";
-
-    size_t savePathLength = strlen(base_path) + strlen(DATA_PATH) + strlen(extension) + 1 + strlen(fileName) + strlen(SAVE_EXTENSION) + 1;
-    char* savePath = malloc(savePathLength);
-    if (savePath)
-    {
-        strcpy(savePath, base_path);
-        strcat(savePath, DATA_PATH);
-        strcat(savePath, extension);
-        strcat(savePath, "/");
-        strcat(savePath, fileName);
-        strcat(savePath, SAVE_EXTENSION);
-
-        printf("%s: savefile_path='%s'\n", __func__, savePath);
-
-        result = savePath;
-    }
-
-    return result;
+    return 0;
 }
 
+void inline odroid_spi_bus_acquire()
+{
+    xSemaphoreTake(spiLock, portMAX_DELAY);
+}
+
+void inline odroid_spi_bus_release()
+{
+    xSemaphoreGive(spiLock);
+}
+
+#if 0
 #include "freertos/FreeRTOS.h"
 #include "esp_system.h"
 #include "driver/i2s.h"

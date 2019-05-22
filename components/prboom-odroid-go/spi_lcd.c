@@ -31,6 +31,7 @@
 #include "sdkconfig.h"
 
 #include "fonts/DejaVuSans24.h"
+#include "odroid_util.h"
 #include "spi_lcd.h"
 
 #define PIN_NUM_MISO 19
@@ -56,7 +57,6 @@ static uint8_t font_height, font_width;
 static bool enablePrintWrap = true;
 
 SemaphoreHandle_t dispSem = NULL;
-SemaphoreHandle_t dispLock = NULL;
 SemaphoreHandle_t fbLock = NULL;
 
 #define NO_SIM_TRANS 5        //Amount of SPI transfers to queue in parallel
@@ -217,7 +217,7 @@ void spi_lcd_fb_flush()
         initialized = true;
     }
 
-    xSemaphoreTake(dispLock, portMAX_DELAY);
+    odroid_spi_bus_acquire();
 
     int idx = 0;
     int inProgress = 0;
@@ -276,7 +276,7 @@ void spi_lcd_fb_flush()
         inProgress--;
     }
 
-    xSemaphoreGive(dispLock);
+    odroid_spi_bus_release();
 }
 
 
@@ -418,7 +418,6 @@ void spi_lcd_fb_printf(int x, int y, char *format, ...)
 void IRAM_ATTR spi_lcd_init()
 {
     dispSem = xSemaphoreCreateBinary();
-    dispLock = xSemaphoreCreateMutex();
     fbLock = xSemaphoreCreateMutex();
 
     esp_err_t ret;
@@ -441,7 +440,7 @@ void IRAM_ATTR spi_lcd_init()
         .flags = SPI_DEVICE_NO_DUMMY
     };
 
-    xSemaphoreTake(dispLock, portMAX_DELAY);
+    odroid_spi_bus_acquire();
 
     //Initialize the SPI bus
     ret = spi_bus_initialize(HSPI_HOST, &buscfg, 2); // DMA Channel
@@ -468,7 +467,7 @@ void IRAM_ATTR spi_lcd_init()
     //Enable backlight
     backlight_init();
 
-    xSemaphoreGive(dispLock);
+    odroid_spi_bus_release();
 
     currFbPtr = heap_caps_calloc(1, SCREEN_WIDTH * SCREEN_HEIGHT, MALLOC_CAP_8BIT);
 
