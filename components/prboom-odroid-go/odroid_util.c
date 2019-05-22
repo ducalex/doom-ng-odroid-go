@@ -1,10 +1,33 @@
+/* 
+ * This file is part of doom-ng-odroid-go.
+ * Copyright (c) 2019 ducalex.
+ * 
+ * This program is free software: you can redistribute it and/or modify  
+ * it under the terms of the GNU General Public License as published by  
+ * the Free Software Foundation, version 3.
+ *
+ * This program is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License 
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "esp_heap_caps.h"
+#include "esp_vfs_fat.h"
+#include "driver/sdmmc_host.h"
+#include "driver/sdspi_host.h"
+#include "sdmmc_cmd.h"
 #include "odroid_util.h"
+#include "spi_lcd.h"
 
 static SemaphoreHandle_t spiLock = NULL;
+static bool sdcard_initialized = false;
 
 size_t free_bytes_total()
 {
@@ -27,7 +50,7 @@ size_t free_bytes_spiram()
   return info.total_free_bytes;
 }
 
-void odroid_system_setup()
+void odroid_system_init()
 {
     // SPI
     spiLock = xSemaphoreCreateMutex();
@@ -35,6 +58,12 @@ void odroid_system_setup()
     // LED
 	gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
 	gpio_set_level(GPIO_NUM_2, 0);
+
+    // SD Card (needs to be before LCD)
+    //odroid_sdcard_init();
+
+    // LCD
+    //spi_lcd_init();
 }
 
 void odroid_system_led_set(int value)
@@ -52,6 +81,18 @@ int odroid_system_battery_level()
     return 0;
 }
 
+void odroid_fatal_error(char *error)
+{
+    printf("Error: %s\n", error);
+    spi_lcd_init();
+    spi_lcd_fb_setPalette(NULL);
+    spi_lcd_fb_clear();
+    spi_lcd_fb_print(0, 0, "A fatal error occurred :(");
+    spi_lcd_fb_print(0, 50, error);
+    spi_lcd_fb_flush();
+    exit(-1);
+}
+
 void inline odroid_spi_bus_acquire()
 {
     xSemaphoreTake(spiLock, portMAX_DELAY);
@@ -60,6 +101,43 @@ void inline odroid_spi_bus_acquire()
 void inline odroid_spi_bus_release()
 {
     xSemaphoreGive(spiLock);
+}
+
+void odroid_sdcard_init()
+{
+    if (sdcard_initialized) return;
+
+    sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+    host.slot = HSPI_HOST; // HSPI_HOST;
+    host.max_freq_khz = SDMMC_FREQ_DEFAULT;
+
+    sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
+    slot_config.gpio_miso = PIN_NUM_MISO;
+    slot_config.gpio_mosi = PIN_NUM_MOSI;
+    slot_config.gpio_sck  = PIN_NUM_CLK;
+    slot_config.gpio_cs   = PIN_NUM_SD_CS;
+    slot_config.dma_channel = SPI_DMA_CHANNEL;
+
+    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+        .format_if_mount_failed = false,
+        .max_files = 8
+    };
+
+    sdmmc_card_t* card;
+
+    odroid_spi_bus_acquire();
+    esp_err_t ret = esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
+    odroid_spi_bus_release();
+
+    if (ret != ESP_OK) {
+        if (ret == ESP_FAIL) {
+            odroid_fatal_error("Init_SD: Failed to mount filesystem.");
+        } else {
+            odroid_fatal_error("Init_SD: Failed to initialize the card.");
+        }
+    } else {
+        sdcard_initialized = true;
+    }
 }
 
 #if 0

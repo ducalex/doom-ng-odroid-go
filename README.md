@@ -65,24 +65,3 @@ VOLUME+RIGHT |
 
 # Compilation
 
-
-## Important
-
-The Odroid Go shares the SPI bus between the SD Card and the LCD. The standard esp-idf doesn't allow that so you have to do a small patch. The change only disables a very specific error, it shouldn't affect your other projects.
-
-In `esp-idf/components/driver/sdspi_host.c` function `sdspi_host_init_slot` change:
-````C++
-    // Initialize SPI bus
-    esp_err_t ret = spi_bus_initialize((spi_host_device_t)slot, &buscfg,
-            slot_config->dma_channel);
-    if (ret != ESP_OK) {
-````
-to:
-````C++
-    // Initialize SPI bus
-    esp_err_t ret = spi_bus_initialize((spi_host_device_t)slot, &buscfg,
-            slot_config->dma_channel);
-    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
-````
-
-For more information refer to https://github.com/espressif/esp-idf/issues/1597 but the proposed patch disables too much in my opinion.

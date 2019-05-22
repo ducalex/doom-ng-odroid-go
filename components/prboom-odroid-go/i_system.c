@@ -77,10 +77,6 @@
 #include <sys/time.h>
 #include "esp_err.h"
 #include "esp_log.h"
-#include "esp_vfs_fat.h"
-#include "driver/sdmmc_host.h"
-#include "driver/sdspi_host.h"
-#include "sdmmc_cmd.h"
 #include "esp_timer.h"
 
 #include "odroid_util.h"
@@ -88,11 +84,6 @@
 #ifdef __GNUG__
 #pragma implementation "i_system.h"
 #endif
-
-#define PIN_NUM_MISO 19
-#define PIN_NUM_MOSI 23
-#define PIN_NUM_CLK  18
-#define PIN_NUM_CS 22
 
 static bool init_SD = false;
 static int nextHandle = 0;
@@ -192,38 +183,8 @@ void Init_SD()
 {
 	if (init_SD == true) return;
 
-	sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-	host.slot = HSPI_HOST; // HSPI_HOST;
-	host.max_freq_khz = SDMMC_FREQ_DEFAULT;
-
-	//host.command_timeout_ms=200;
-	//host.max_freq_khz = SDMMC_FREQ_PROBING;
-	sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
-	slot_config.gpio_miso = PIN_NUM_MISO;
-	slot_config.gpio_mosi = PIN_NUM_MOSI;
-	slot_config.gpio_sck  = PIN_NUM_CLK;
-	slot_config.gpio_cs   = PIN_NUM_CS;
-	//slot_config.dma_channel = 1; //2
-
-	esp_vfs_fat_sdmmc_mount_config_t mount_config = {
-			.format_if_mount_failed = false,
-			.max_files = 8
-	};
-
-	sdmmc_card_t* card;
-
-	odroid_spi_bus_acquire();
-	esp_err_t ret = esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
-	odroid_spi_bus_release();
-
-	if (ret != ESP_OK) {
-		if (ret == ESP_FAIL) {
-			I_Error("Init_SD: Failed to mount filesystem.");
-		} else {
-			I_Error("Init_SD: Failed to initialize the card. (%d)", ret);
-		}
-	}
-
+	odroid_sdcard_init();
+	
 	// Create the save dir. It will fail silently if it exists
 	odroid_spi_bus_acquire();
 	mkdir(I_DoomSaveDir(), 0755);

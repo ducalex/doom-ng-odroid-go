@@ -34,14 +34,6 @@
 #include "odroid_util.h"
 #include "spi_lcd.h"
 
-#define PIN_NUM_MISO 19
-#define PIN_NUM_MOSI 23
-#define PIN_NUM_CLK 18
-#define PIN_NUM_CS 5
-#define PIN_NUM_DC 21
-#define PIN_NUM_RST -1
-#define PIN_NUM_BCKL 14
-
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
 
@@ -55,6 +47,8 @@ static uint8_t *displayFont;
 static propFont	fontChar;
 static uint8_t font_height, font_width;
 static bool enablePrintWrap = true;
+
+static bool lcd_initialized = false;
 
 SemaphoreHandle_t dispSem = NULL;
 SemaphoreHandle_t fbLock = NULL;
@@ -119,7 +113,7 @@ static void backlight_init()
     memset(&ledc_channel, 0, sizeof(ledc_channel));
     ledc_channel.channel = LEDC_CHANNEL_0;
     ledc_channel.duty = TFT_LED_DUTY_MAX;
-    ledc_channel.gpio_num = PIN_NUM_BCKL;
+    ledc_channel.gpio_num = PIN_NUM_LCD_BCKL;
     ledc_channel.intr_type = LEDC_INTR_FADE_END;
     ledc_channel.speed_mode = LEDC_LOW_SPEED_MODE;
     ledc_channel.timer_sel = LEDC_TIMER_0;
@@ -417,6 +411,8 @@ void spi_lcd_fb_printf(int x, int y, char *format, ...)
 
 void IRAM_ATTR spi_lcd_init()
 {
+    if (lcd_initialized) return;
+    
     dispSem = xSemaphoreCreateBinary();
     fbLock = xSemaphoreCreateMutex();
 
@@ -434,7 +430,7 @@ void IRAM_ATTR spi_lcd_init()
     spi_device_interface_config_t devcfg = {
         .clock_speed_hz = 40000000,              //Clock out at 40 MHz. Yes, that's heavily overclocked.
         .mode = 0,                               //SPI mode 0
-        .spics_io_num = PIN_NUM_CS,              //CS pin
+        .spics_io_num = PIN_NUM_LCD_CS,              //CS pin
         .queue_size = NO_SIM_TRANS,              //We want to be able to queue this many transfers
         .pre_cb = spi_lcd_pre_transfer_callback, //Specify pre-transfer callback to handle D/C line
         .flags = SPI_DEVICE_NO_DUMMY
@@ -443,8 +439,8 @@ void IRAM_ATTR spi_lcd_init()
     odroid_spi_bus_acquire();
 
     //Initialize the SPI bus
-    ret = spi_bus_initialize(HSPI_HOST, &buscfg, 2); // DMA Channel
-    assert(ret==ESP_OK);
+    ret = spi_bus_initialize(HSPI_HOST, &buscfg, SPI_DMA_CHANNEL); // DMA Channel
+    assert(ret==ESP_OK || ret==ESP_ERR_INVALID_STATE);
 
     //Attach the LCD to the SPI bus
     ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
@@ -470,6 +466,8 @@ void IRAM_ATTR spi_lcd_init()
     odroid_spi_bus_release();
 
     currFbPtr = heap_caps_calloc(1, SCREEN_WIDTH * SCREEN_HEIGHT, MALLOC_CAP_8BIT);
+
+    lcd_initialized = true;
 
     printf("spi_lcd_init(): Starting display task.\n");
     xTaskCreatePinnedToCore(&displayTask, "display", 6000, NULL, 6, NULL, 1);

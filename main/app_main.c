@@ -35,7 +35,7 @@ extern void Init_SD();
 extern int doom_main(int argc, char const * const *argv);
 extern void spi_lcd_init();
 extern void iwad_selector(char **selected_iwad);
-extern void odroid_system_setup();
+extern void odroid_system_init();
 
 static char *selected_iwad = NULL;
 
@@ -52,14 +52,14 @@ void doomEngineTask(void *pvParameters)
 
 void app_main()
 {
-	printf("app_main(): Setting up Odroid GO stuff\n");
-	odroid_system_setup();
-	
-	printf("app_main(): Initializing SPI LCD\n");
-	spi_lcd_init();
+	printf("app_main(): Initializing Odroid GO stuff\n");
+	odroid_system_init();
 	
 	printf("app_main(): Initializing SD Card\n");
 	Init_SD();
+	
+	printf("app_main(): Initializing SPI LCD\n");
+	spi_lcd_init();
 	
 	printf("app_main(): Initializing NVS Storage\n");
 	nvs_flash_init();
