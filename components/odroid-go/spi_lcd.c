@@ -1,5 +1,5 @@
 /* 
- * This file is part of doom-ng-odroid-go.
+ * This file is part of odroid-go-std-lib.
  * Copyright (c) 2019 ducalex.
  * 
  * This program is free software: you can redistribute it and/or modify  
@@ -31,8 +31,7 @@
 #include "sdkconfig.h"
 
 #include "fonts/DejaVuSans24.h"
-#include "odroid_util.h"
-#include "spi_lcd.h"
+#include "odroid.h"
 
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
@@ -47,6 +46,7 @@ static uint8_t *displayFont;
 static propFont	fontChar;
 static uint8_t font_height, font_width;
 static bool enablePrintWrap = true;
+static uint16_t fontColor = 1;
 
 static bool lcd_initialized = false;
 
@@ -308,7 +308,7 @@ void spi_lcd_fb_clear()
 }
 
 
-void spi_lcd_fb_drawPixel(int x, int y, int color)
+void spi_lcd_fb_drawPixel(int x, int y, uint16_t color)
 {
     currFbPtr[x * SCREEN_WIDTH + y] = color;
 }
@@ -339,18 +339,7 @@ static uint8_t getCharPtr(uint8_t c)
 }
 
 
-void spi_lcd_fb_setFont(const uint8_t *font)
-{
-    displayFont = font;
-
-    //font_width = font[0];
-    font_height = font[1];
-    getCharPtr('@');
-    font_width = fontChar.width;
-}
-
-
-int spi_lcd_fb_drawChar(int x, int y, uint8_t c, uint16_t color)
+static int spi_lcd_fb_drawChar(int x, int y, uint8_t c)
 {
     if (!getCharPtr(c)) {
         return 0;
@@ -373,13 +362,30 @@ int spi_lcd_fb_drawChar(int x, int y, uint8_t c, uint16_t color)
 			if ((ch & mask) !=0) {
 				cx = (uint16_t)(x+fontChar.xOffset+i);
 				cy = (uint16_t)(y+j+fontChar.adjYOffset);
-				spi_lcd_fb_drawPixel(cy, cx, color);
+				spi_lcd_fb_drawPixel(cy, cx, fontColor);
 			}
 			mask >>= 1;
 		}
 	}
 
 	return char_width;
+}
+
+
+void spi_lcd_fb_setFont(const uint8_t *font)
+{
+    displayFont = font;
+
+    //font_width = font[0];
+    font_height = font[1];
+    getCharPtr('@');
+    font_width = fontChar.width;
+}
+
+
+void spi_lcd_fb_setFontColor(uint16_t color)
+{
+    fontColor = color;
 }
 
 
@@ -392,7 +398,7 @@ void spi_lcd_fb_print(int x, int y, char *string)
             y += font_height + 5;
             x = orig_x;
         }
-        x += spi_lcd_fb_drawChar(x, y, (uint8_t) string[i], 2);
+        x += spi_lcd_fb_drawChar(x, y, (uint8_t) string[i]);
     }
 }
 
@@ -413,6 +419,8 @@ void IRAM_ATTR spi_lcd_init()
 {
     if (lcd_initialized) return;
     
+    printf("spi_lcd_init: Initializing SPI LCD.\n");
+
     dispSem = xSemaphoreCreateBinary();
     fbLock = xSemaphoreCreateMutex();
 

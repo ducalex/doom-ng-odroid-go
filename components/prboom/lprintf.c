@@ -56,7 +56,7 @@
 
 #include "rom/ets_sys.h"
 
-#include "odroid_util.h"
+#include "odroid.h"
 
 int cons_error_mask = -1-LO_INFO; /* all but LO_INFO when redir'd */
 int cons_output_mask = -1;        /* all output enabled */

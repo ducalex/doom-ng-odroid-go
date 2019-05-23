@@ -79,13 +79,12 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 
-#include "odroid_util.h"
+#include "odroid.h"
 
 #ifdef __GNUG__
 #pragma implementation "i_system.h"
 #endif
 
-static bool init_SD = false;
 static int nextHandle = 0;
 static int displaytime = 0;
 
@@ -179,28 +178,8 @@ const char *I_DoomSaveDir(void)
 }
 
 
-void Init_SD()
-{
-	if (init_SD == true) return;
-
-	odroid_sdcard_init();
-	
-	// Create the save dir. It will fail silently if it exists
-	odroid_spi_bus_acquire();
-	mkdir(I_DoomSaveDir(), 0755);
-	odroid_spi_bus_release();
-
-	init_SD = true;
-
-	lprintf(LO_INFO, "Init_SD: SD card opened.\n");
-}
-
-
 int I_Open(const char *fname, int flags)
 {
-	if (init_SD == false)
-		Init_SD();
-
 	lprintf(LO_INFO, "I_Open: Opening File: %s\n", fname);
 	
 	odroid_spi_bus_acquire();

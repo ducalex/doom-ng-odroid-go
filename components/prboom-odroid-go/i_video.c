@@ -53,15 +53,13 @@
 #include "lprintf.h"
 
 #include "rom/ets_sys.h"
-#include "spi_lcd.h"
+#include "odroid.h"
 
 #include "esp_heap_caps.h"
 
 int use_fullscreen = 0;
 int use_doublebuffer = 0;
 int16_t lcdpal[256];
-
-unsigned char *screenbuf;
 
 void I_StartTic(void)
 {
@@ -140,11 +138,6 @@ void I_SetPalette (int pal)
 void I_PreInitGraphics(void)
 {
 	lprintf(LO_INFO, "preinitgfx");
-#ifdef INTERNAL_MEM_FB
-	screenbuf=heap_caps_malloc(320*240, MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT);
-  //screenbuf=heap_caps_malloc(320*240, MALLOC_CAP_32BIT);
-	assert(screenbuf);
-#endif
 }
 
 
@@ -172,21 +165,6 @@ void I_SetRes(void)
   screens[4].byte_pitch = SCREENPITCH;
   screens[4].short_pitch = SCREENPITCH / V_GetModePixelDepth(VID_MODE16);
   screens[4].int_pitch = SCREENPITCH / V_GetModePixelDepth(VID_MODE32);
-
-//Attempt at double-buffering. Does not work.
-//  free(screena);
-//  free(screenb);
-//  screena=malloc(SCREENPITCH*SCREENHEIGHT);
-//  screenb=malloc(SCREENPITCH*SCREENHEIGHT);
-
-
-#ifdef INTERNAL_MEM_FB
-  screens[0].not_on_heap=true;
-  screens[0].data=screenbuf;
-  assert(screens[0].data);
-#endif
-
-//  spi_lcd_init();
 
   lprintf(LO_INFO,"I_SetRes: Using resolution %dx%d\n", SCREENWIDTH, SCREENHEIGHT);
 }

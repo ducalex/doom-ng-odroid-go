@@ -1,5 +1,5 @@
 #
-# Main Makefile. This is basically the same as a component makefile.
+# Component Makefile
 #
 # This Makefile should, at the very least, just include $(SDK_PATH)/make/component.mk. By default, 
 # this will take the sources in the src/ directory, compile them and link them into 
@@ -7,6 +7,5 @@
 # please read the SDK documents if you need to do this.
 #
 
-COMPONENT_ADD_INCLUDEDIRS += ../components/odroid-go
-
 #include $(IDF_PATH)/make/component_common.mk
+

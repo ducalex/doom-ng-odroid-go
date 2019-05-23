@@ -7,6 +7,7 @@
 # please read the SDK documents if you need to do this.
 #
 
+COMPONENT_ADD_INCLUDEDIRS += ../odroid-go
 COMPONENT_ADD_INCLUDEDIRS += ../prboom
 CFLAGS += -O3
 #include $(IDF_PATH)/make/component_common.mk

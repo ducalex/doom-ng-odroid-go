@@ -1,5 +1,5 @@
 /* 
- * This file is part of doom-ng-odroid-go.
+ * This file is part of odroid-go-std-lib.
  * Copyright (c) 2019 ducalex.
  * 
  * This program is free software: you can redistribute it and/or modify  
@@ -35,7 +35,7 @@ typedef struct {
 #define LCD_CMD 0
 #define LCD_DATA 1
 
-static const int16_t default_palette[256] = {0, 7 << 12, 7 << 5, 7};
+static const int16_t default_palette[256] = {0, 0xFFFF, 7 << 5, 7, 7 << 10};
 
 short backlight_percentage_get(void);
 void backlight_percentage_set(short level);
@@ -49,8 +49,8 @@ void spi_lcd_fb_setPalette(const int16_t *palette);
 void spi_lcd_fb_setptr(uint8_t *buffer);
 void spi_lcd_fb_write(uint8_t *buffer);
 void spi_lcd_fb_clear();
-void spi_lcd_fb_drawPixel(int x, int y, int color);
+void spi_lcd_fb_drawPixel(int x, int y, uint16_t color);
 void spi_lcd_fb_setFont(const uint8_t *font);
-int spi_lcd_fb_drawChar(int x, int y, uint8_t c, uint16_t color);
+void spi_lcd_fb_setFontColor(uint16_t color);
 void spi_lcd_fb_print(int x, int y, char *string);
 void spi_lcd_fb_printf(int x, int y, char *string, ...);

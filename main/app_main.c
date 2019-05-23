@@ -16,27 +16,16 @@
 #include <unistd.h>
 #include <stdio.h>
 
-#include "rom/cache.h"
-#include "rom/ets_sys.h"
-#include "rom/crc.h"
-
-#include "soc/soc.h"
-#include "soc/rtc_cntl_reg.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
-#include "esp_system.h"
-#include "esp_attr.h"
-#include "esp_err.h"
-#include "nvs_flash.h"
 
-extern void gamepadInit();
-extern void Init_SD();
+#include "odroid.h"
+
 extern int doom_main(int argc, char const * const *argv);
-extern void spi_lcd_init();
 extern void iwad_selector(char **selected_iwad);
-extern void odroid_system_init();
-
+extern char *I_DoomSaveDir(void);
+extern char *I_DoomExeDir(void);
 static char *selected_iwad = NULL;
 
 void doomEngineTask(void *pvParameters)
@@ -54,19 +43,11 @@ void app_main()
 {
 	printf("app_main(): Initializing Odroid GO stuff\n");
 	odroid_system_init();
-	
-	printf("app_main(): Initializing SD Card\n");
-	Init_SD();
-	
-	printf("app_main(): Initializing SPI LCD\n");
-	spi_lcd_init();
-	
-	printf("app_main(): Initializing NVS Storage\n");
-	nvs_flash_init();
 
-	printf("app_main(): Initializing Gamepad\n");
-	gamepadInit();
-	
+	// Create required directories
+	odroid_sdcard_mkdir(I_DoomSaveDir());
+	odroid_sdcard_mkdir(I_DoomExeDir());
+
 	printf("app_main(): IWad selector\n");
 	iwad_selector(&selected_iwad);
 	
