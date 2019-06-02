@@ -58,9 +58,9 @@ VOLUME+RIGHT |
 
 - Fix the memory allocation failures due to memory fragmentation (especially when switching levels)
 
-- Fix screen tearing. Locking the framebuffer would fix the issue but it drops the framerate significantly.
-
 - Make it possible to delete savegames.
+
+- Support mods and expansions such as SIGIL
 
 
 # Compilation
