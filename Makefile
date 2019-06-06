@@ -3,7 +3,7 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := esp32-doom
+PROJECT_NAME := doom-esp32
 
 
 include $(IDF_PATH)/make/project.mk

@@ -117,6 +117,40 @@ void odroid_input_set_callback(void (*callback)(odroid_input_state))
 }
 
 
+int odroid_input_wait_for_button_press(int ticks)
+{
+    uint8_t previousValues[ODROID_INPUT_MAX] = {0};
+    uint8_t values[ODROID_INPUT_MAX] = {0};
+    
+    int timeout = xTaskGetTickCount() + ticks;
+
+    odroid_input_read_raw(&previousValues);
+
+    while (true)
+    {
+        // We don't use gamepad_state because it might be unavailable
+        odroid_input_read_raw(&values);
+
+        for(int i = 0; i < ODROID_INPUT_MAX; i++)
+        {
+            //if (previousValues[i] && !values[i]) { // Press and release
+            if (!previousValues[i] && values[i]) { // Release and press
+                return i;
+            }
+            previousValues[i] = values[i];
+        }
+
+        if (ticks > 0 && timeout < xTaskGetTickCount()) {
+            break;
+        }
+        
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+    }
+
+    return -1;
+}
+
+
 void odroid_input_init(void)
 {
 	if (input_gamepad_initialized) {

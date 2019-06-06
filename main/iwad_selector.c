@@ -33,33 +33,44 @@ extern void I_BeginDiskAccess(void);
 extern void I_EndDiskAccess(void);
 extern const char *I_DoomExeDir(void);
 
-static int selected = 0;
-static bool a_pressed = false;
-static int files_count = 0;
-
-void input_callback(odroid_input_state state)
+typedef struct
 {
-	if (state.values[ODROID_INPUT_UP])
-		if (--selected < 0) selected = 0;
-	if (state.values[ODROID_INPUT_DOWN])
-		if (++selected >= files_count) selected = files_count - 1;
-	if (state.values[ODROID_INPUT_A])
-		a_pressed = true;
-}
+	bool internal;
+	bool selected;
+	char name[32];
+	char path[64];
+} wad_t;
 
-void iwad_selector(char **selected_iwad)
+
+void iwad_selector(char *argv[], int *argc)
 {
 	DIR *dir;
 	struct dirent *ent;
-	char files[16][64];
 	char buffer[64];
-	
+	int cursor = 0;
+
+	wad_t wads[16];
+	int wads_count = 0;
+
 	I_BeginDiskAccess();
 	if ((dir = opendir(I_DoomExeDir())) != NULL) {
 		while ((ent = readdir(dir)) != NULL) {
 			if (strcasecmp(ent->d_name, "prboom.wad") != 0 && 
-				strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".wad") == 0) {
-				memcpy(files[files_count++], ent->d_name, 64);
+					strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".wad") == 0) {
+				
+				sprintf(&buffer, "%s/%s", I_DoomExeDir(), ent->d_name);
+
+				wad_t *wad = &wads[wads_count++];
+
+				memcpy(wad->name, ent->d_name, 32);
+				memcpy(wad->path, buffer, 64);
+				
+				FILE *fp = fopen(wad->path, "rb");
+				fread(&buffer, 4, 1, fp);
+				fclose(fp);
+				
+				wad->internal = (memcmp(buffer, "IWAD", 4) == 0);
+				wad->selected = false;
 			}
 		}
 		closedir (dir);
@@ -68,30 +79,70 @@ void iwad_selector(char **selected_iwad)
 
 	spi_lcd_fb_setFontColor(2);
 	
-	if (files_count > 1) {
+	if (wads_count <= 1)
+		return;
 
-		odroid_input_set_callback(&input_callback);
-		while(1) {
-			if (a_pressed) {
-				spi_lcd_fb_clear();
-				spi_lcd_fb_print(0, 0, "Starting Doom...");
-				spi_lcd_fb_flush();
-				*selected_iwad = strdup(files[selected]);
-				return;
+	while(1) {
+		int row = 0;
+		
+		spi_lcd_fb_clear();
+		spi_lcd_fb_print(0, row++ * 30, "Please select a WAD:");
+
+		for (int i = 0; i < wads_count; i++) {
+			spi_lcd_fb_print(5, row * 30, cursor == i ? ">" : " ");
+			spi_lcd_fb_setFontColor(wads[i].selected ? 3 : 2);
+			spi_lcd_fb_print(30, row++ * 30, wads[i].name);
+			spi_lcd_fb_setFontColor(2);
+		}
+
+		spi_lcd_fb_flush();
+
+		int btn = odroid_input_wait_for_button_press(1000);
+		
+		if (btn == ODROID_INPUT_UP) {
+			if (--cursor < 0) cursor = 0;
+		}
+		else if (btn == ODROID_INPUT_DOWN) {
+			if (++cursor >= wads_count) cursor = wads_count - 1;
+		}
+		else if (btn == ODROID_INPUT_B || btn == ODROID_INPUT_A) {
+			// Btn A always selects, otherwise we toggle
+			wads[cursor].selected = (!wads[cursor].selected || btn == ODROID_INPUT_A);
+
+			// Deselect other IWADs, only one can be selected
+			if (wads[cursor].selected && wads[cursor].internal) {
+				for (int i = 0; i < wads_count; i++) {
+					if (i != cursor && wads[i].internal) {
+						wads[i].selected = false;
+					}
+				}
 			}
-
-			int row = 0;
-			
+		}
+		
+		if (btn == ODROID_INPUT_A) {
 			spi_lcd_fb_clear();
-			spi_lcd_fb_print(0, row++ * 30, "Please select a WAD:");
-
-			for (int i = 0; i < files_count; i++) {
-				spi_lcd_fb_print(5, row * 30, selected == i ? ">" : " ");
-				spi_lcd_fb_print(30, row++ * 30, files[i]);
+			spi_lcd_fb_print(0, 0, "Starting Doom...");
+			row = 2;
+			
+			// Add WADs (mods)
+			for (int i = 0; i < wads_count; i++) {
+				if (wads[i].selected && !wads[i].internal) {
+					argv[(*argc)++] = strdup(wads[i].path);
+					spi_lcd_fb_printf(15, row++ * 30, "WAD: %s", wads[i].name);
+				}
+			}
+			
+			// Add IWAD (game) at the end
+			for (int i = 0; i < wads_count; i++) {
+				if (wads[i].selected && wads[i].internal) {
+					argv[(*argc)++] = strdup("-iwad");
+					argv[(*argc)++] = strdup(wads[i].name);
+					spi_lcd_fb_printf(15, row++ * 30, "IWAD: %s", wads[i].name);
+				}
 			}
 
 			spi_lcd_fb_flush();
-			// vTaskDelay
+			return;
 		}
 	}
 }

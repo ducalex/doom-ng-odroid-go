@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -23,20 +24,18 @@
 #include "odroid.h"
 
 extern int doom_main(int argc, char const * const *argv);
-extern void iwad_selector(char **selected_iwad);
+extern void iwad_selector(char *argv, int *argc);
 extern char *I_DoomSaveDir(void);
 extern char *I_DoomExeDir(void);
-static char *selected_iwad = NULL;
+
+char *doom_argv[16];
+int doom_argc = 1;
+
 
 void doomEngineTask(void *pvParameters)
 {
-	if (selected_iwad == NULL) {
-		char const *argv[] = {"doom", "-cout", "ICWEFDA", NULL};
-		doom_main(3, argv);
-	} else {
-		char const *argv[] = {"doom", "-cout", "ICWEFDA", "-iwad", selected_iwad, NULL};
-		doom_main(5, argv);
-	}
+	doom_argv[0] = strdup("doom");
+	doom_main(doom_argc, doom_argv);
 }
 
 void app_main()
@@ -49,7 +48,7 @@ void app_main()
 	odroid_sdcard_mkdir(I_DoomExeDir());
 
 	printf("app_main(): IWad selector\n");
-	iwad_selector(&selected_iwad);
+	iwad_selector(doom_argv, &doom_argc);
 	
 	printf("app_main(): Starting Doom!\n");
 	xTaskCreatePinnedToCore(&doomEngineTask, "doomEngine", 18000, NULL, 5, NULL, 0);
