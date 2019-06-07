@@ -2066,9 +2066,9 @@ static void M_DrawInstructions(void)
           M_DrawStringCentered(160, 20, CR_SELECT, "Press key for this action");
         break;
 
-    case S_YESNO:
-      M_DrawStringCentered(160, 20, CR_SELECT, "Press ENTER key to toggle");
-      break;
+    //case S_YESNO:
+    //  M_DrawStringCentered(160, 20, CR_SELECT, "Press ENTER key to toggle");
+    //  break;
     case S_WEAP:
       M_DrawStringCentered(160, 20, CR_SELECT, "Enter weapon number");
       break;
@@ -2087,6 +2087,7 @@ static void M_DrawInstructions(void)
     case S_FILE:
       M_DrawStringCentered(160, 20, CR_SELECT, "Type/edit filename and Press ENTER");
       break;
+    case S_YESNO:
     case S_CHOICE: 
       M_DrawStringCentered(160, 20, CR_SELECT, "Press left or right to choose");
       break;
@@ -4450,7 +4451,8 @@ boolean M_Responder (event_t* ev) {
 
   if (ptr1->m_flags & S_YESNO) // yes or no setting?
     {
-    if (ch == key_menu_enter) {
+    //if (ch == key_menu_enter) {
+    if (ch == key_left || ch == key_right) {
       *ptr1->var.def->location.pi = !*ptr1->var.def->location.pi; // killough 8/15/98
 
       // phares 4/14/98:

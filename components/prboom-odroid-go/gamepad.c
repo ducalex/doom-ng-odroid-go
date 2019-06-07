@@ -37,26 +37,28 @@ typedef struct {
 	int *key;
 } JsKeyMap;
 
-//Mappings from PS2 buttons to keys
+static char *key_yes = 'y';
+static char *key_no = 'n';
+
 static const JsKeyMap keymap[]={
-	{0x10, &key_up},
-	{0x40, &key_down},
-	{0x80, &key_left},
-	{0x20, &key_right},
+	{1 << ODROID_INPUT_UP,    &key_up},
+	{1 << ODROID_INPUT_DOWN,  &key_down},
+	{1 << ODROID_INPUT_LEFT,  &key_left},
+	{1 << ODROID_INPUT_RIGHT, &key_right},
 
-	{0x4000, &key_use},				//start
-	{0x2000, &key_fire},			//circle
-	{0x2000, &key_menu_enter},		//circle
-	{0x8000, &key_pause},			//square
-	{0x1000, &key_weapontoggle},	//triangle
+	{1 << ODROID_INPUT_A, &key_yes},
+	{1 << ODROID_INPUT_A, &key_fire},
+	{1 << ODROID_INPUT_A, &key_menu_enter},
 
-	{0x8, &key_escape},				//menu
-	{0x1, &key_map},				//select
+	{1 << ODROID_INPUT_B, &key_no},
+	{1 << ODROID_INPUT_B, &key_speed},
+	{1 << ODROID_INPUT_B, &key_strafe},
+	{1 << ODROID_INPUT_B, &key_menu_backspace},
 
-	{0x400, &key_strafeleft},		//L1
-	{0x100, &key_speed},			//L2
-	{0x800, &key_straferight},		//R1
-	{0x200, &key_strafe},			//R2
+	{1 << ODROID_INPUT_MENU,   &key_escape},
+	{1 << ODROID_INPUT_VOLUME, &key_map},
+	{1 << ODROID_INPUT_START,  &key_use},
+	{1 << ODROID_INPUT_SELECT, &key_weapontoggle},
 
 	{0, NULL},
 };
@@ -78,36 +80,8 @@ static void JoystickReadCallback(odroid_input_state gamepad_state)
 {
 	int result = 0;
 
-	if (!gamepad_state.values[ODROID_INPUT_UP])
-			result |= 0x10; //key_up
-
-	if (!gamepad_state.values[ODROID_INPUT_DOWN])
-			result |= 0x40; //key_down
-
-	if (!gamepad_state.values[ODROID_INPUT_LEFT])
-			result |= 0x80; //key_left
-
-	if (!gamepad_state.values[ODROID_INPUT_RIGHT])
-			result |= 0x20; //key_right
-
-	if (!gamepad_state.values[ODROID_INPUT_A])
-			result |= 0x2000; //key_fire, key_menu_enter
-
-	if (!gamepad_state.values[ODROID_INPUT_START])
-			result |= 0x4000; //key_use
-
-	if (!gamepad_state.values[ODROID_INPUT_MENU])
-			result |= 0x8; //key_escape
-
-	if (!gamepad_state.values[ODROID_INPUT_SELECT])
-			result |= 0x1000; //key_weapontoggle
-
-	if (!gamepad_state.values[ODROID_INPUT_VOLUME])
-			result |= 0x1; //key_map
-
-	if (!gamepad_state.values[ODROID_INPUT_B]){
-			result |= 0x200; //key_strafe
-			result |= 0x100; //key_run
+	for (int i = 0; i < ODROID_INPUT_MAX; i++) {
+		result |= (gamepad_state.values[i] ? 0 : 1) << i;
 	}
 
 	if (gamepad_state.values[ODROID_INPUT_START]) {
@@ -127,7 +101,7 @@ static void JoystickReadCallback(odroid_input_state gamepad_state)
 			if (--snd_volume < 0) snd_volume = 0;
 			doom_printf("Volume: %d", snd_volume);
 		}
-		result |= (0x10 | 0x20 | 0x40 | 0x80); // cancel arrow keys
+		result = ~(1 << ODROID_INPUT_START);
 	}
 
 	if (gamepad_state.values[ODROID_INPUT_MENU]) {
@@ -147,7 +121,7 @@ static void JoystickReadCallback(odroid_input_state gamepad_state)
 			//200% health
 			ApplyCheat("idbeholdh");
 		}
-		result |= (0x10 | 0x20 | 0x40 | 0x80); // cancel arrow keys
+		result = ~(1 << ODROID_INPUT_MENU);
 	}
 
 	if (gamepad_state.values[ODROID_INPUT_VOLUME]) {
@@ -180,7 +154,7 @@ static void JoystickReadCallback(odroid_input_state gamepad_state)
 				cheatCurrentLevel = 1; 
 			}
 		}
-		result |= (0x10 | 0x20 | 0x40 | 0x80); // cancel arrow keys
+		result = ~(1 << ODROID_INPUT_VOLUME);
 	}
 
 	joyVal = result;

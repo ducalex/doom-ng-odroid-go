@@ -46,10 +46,10 @@ void iwad_selector(char *argv[], int *argc)
 {
 	DIR *dir;
 	struct dirent *ent;
-	char buffer[64];
+	char buffer[16];
 	int cursor = 0;
-
-	wad_t wads[16];
+	int offset = 0;
+	wad_t *wads = malloc(64 * sizeof(wad_t));
 	int wads_count = 0;
 
 	I_BeginDiskAccess();
@@ -58,12 +58,10 @@ void iwad_selector(char *argv[], int *argc)
 			if (strcasecmp(ent->d_name, "prboom.wad") != 0 && 
 					strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".wad") == 0) {
 				
-				sprintf(&buffer, "%s/%s", I_DoomExeDir(), ent->d_name);
-
 				wad_t *wad = &wads[wads_count++];
 
+				sprintf(wad->path, "%s/%s", I_DoomExeDir(), ent->d_name);
 				memcpy(wad->name, ent->d_name, 32);
-				memcpy(wad->path, buffer, 64);
 				
 				FILE *fp = fopen(wad->path, "rb");
 				fread(&buffer, 4, 1, fp);
@@ -80,7 +78,7 @@ void iwad_selector(char *argv[], int *argc)
 	spi_lcd_fb_setFontColor(2);
 	
 	if (wads_count <= 1)
-		return;
+		goto free_and_return;
 
 	while(1) {
 		int row = 0;
@@ -88,7 +86,10 @@ void iwad_selector(char *argv[], int *argc)
 		spi_lcd_fb_clear();
 		spi_lcd_fb_print(0, row++ * 30, "Please select a WAD:");
 
-		for (int i = 0; i < wads_count; i++) {
+		offset = cursor - 6;
+		if (offset < 0) offset = 0;
+
+		for (int i = offset; i < wads_count && i < (offset + 7); i++) {
 			spi_lcd_fb_print(5, row * 30, cursor == i ? ">" : " ");
 			spi_lcd_fb_setFontColor(wads[i].selected ? 3 : 2);
 			spi_lcd_fb_print(30, row++ * 30, wads[i].name);
@@ -142,7 +143,9 @@ void iwad_selector(char *argv[], int *argc)
 			}
 
 			spi_lcd_fb_flush();
-			return;
+			break;
 		}
 	}
+	free_and_return:
+	free(wads);
 }
