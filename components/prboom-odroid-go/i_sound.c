@@ -364,10 +364,10 @@ void I_InitSound(void)
     nvs_handle nvs_h;
     nvs_open("audio", NVS_READWRITE, &nvs_h);
 	if (nvs_get_i32(nvs_h, "master_volume", &snd_MasterVolume) != ESP_OK) {
-		snd_MasterVolume = 8;
+		snd_MasterVolume = 9;
 	}
 	if (nvs_get_i32(nvs_h, "music_volume", &snd_MusicVolume) != ESP_OK) {
-		snd_MusicVolume = 10;
+		snd_MusicVolume = 15;
 	}
 	if (nvs_get_i32(nvs_h, "sfx_volume", &snd_SfxVolume) != ESP_OK) {
 		snd_SfxVolume = 15;
