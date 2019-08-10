@@ -27,6 +27,7 @@
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
+#include "nvs.h"
 
 #include "sdkconfig.h"
 
@@ -49,6 +50,8 @@ static bool enablePrintWrap = true;
 static uint16_t fontColor = 1;
 
 static bool lcd_initialized = false;
+
+static nvs_handle nvs_h;
 
 SemaphoreHandle_t dispSem = NULL;
 SemaphoreHandle_t fbLock = NULL;
@@ -134,7 +137,12 @@ void backlight_percentage_set(short level)
 {
     if (level > 100) level = 100;
     if (level < 10) level = 10;
-
+    
+    if (BacklightLevel != level) {
+        nvs_set_u8(nvs_h, "backlight", level);
+        nvs_commit(nvs_h);
+    }
+    
     BacklightLevel = level;
 
     int duty = TFT_LED_DUTY_MAX * (BacklightLevel * 0.01f);
@@ -468,6 +476,10 @@ void IRAM_ATTR spi_lcd_init()
     spi_lcd_fb_setFont(tft_Dejavu24);
     spi_lcd_fb_setPalette(NULL);
 
+    // Enable NVS
+    nvs_open("display", NVS_READWRITE, &nvs_h);
+    nvs_get_u8(nvs_h, "backlight", &BacklightLevel);
+    
     //Enable backlight
     backlight_init();
 

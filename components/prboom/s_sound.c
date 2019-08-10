@@ -444,6 +444,7 @@ void S_SetSfxVolume(int volume)
   if (volume < 0 || volume > 127)
     I_Error("S_SetSfxVolume: Attempt to set sfx volume at %d", volume);
   snd_SfxVolume = volume;
+  I_SetMusicVolume(snd_MusicVolume);
 }
 
 

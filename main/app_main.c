@@ -20,13 +20,11 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "i_system.h"
 
 #include "odroid.h"
 
-extern int doom_main(int argc, char const * const *argv);
 extern void iwad_selector(char *argv, int *argc);
-extern char *I_DoomSaveDir(void);
-extern char *I_DoomExeDir(void);
 
 char *doom_argv[16];
 int doom_argc = 1;
@@ -34,7 +32,7 @@ int doom_argc = 1;
 
 void doomEngineTask(void *pvParameters)
 {
-	doom_argv[0] = strdup("doom");
+	doom_argv[0] = strdup("doom");	
 	doom_main(doom_argc, doom_argv);
 }
 

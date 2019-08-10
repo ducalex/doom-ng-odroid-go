@@ -27,6 +27,9 @@
 #include "gamepad.h"
 #include "odroid.h"
 
+extern void saveAudioSettings();
+extern int snd_MasterVolume;
+
 //The gamepad uses keyboard emulation, but for compilation, these variables need to be placed
 //somewhere. THis is as good a place as any.
 int usejoystick=0;
@@ -64,7 +67,6 @@ static const JsKeyMap keymap[]={
 };
 
 static int cheatCurrentLevel = 1;
-extern int snd_volume;
 static volatile int joyVal = 0;
 
 
@@ -94,12 +96,14 @@ static void JoystickReadCallback(odroid_input_state gamepad_state)
 			doom_printf("Brightness: %d", backlight_percentage_get());
 		}
 		if (gamepad_state.values[ODROID_INPUT_RIGHT] && !gamepad_state.previous[ODROID_INPUT_RIGHT]) { // volume up
-			if (++snd_volume > 15) snd_volume = 15;
-			doom_printf("Volume: %d", snd_volume);
+			if (++snd_MasterVolume > 15) snd_MasterVolume = 15;
+			saveAudioSettings();
+			doom_printf("Volume: %d", snd_MasterVolume);
 		}
 		if (gamepad_state.values[ODROID_INPUT_LEFT] && !gamepad_state.previous[ODROID_INPUT_LEFT]) { // volume down
-			if (--snd_volume < 0) snd_volume = 0;
-			doom_printf("Volume: %d", snd_volume);
+			if (--snd_MasterVolume < 0) snd_MasterVolume = 0;
+			saveAudioSettings();
+			doom_printf("Volume: %d", snd_MasterVolume);
 		}
 		result = ~(1 << ODROID_INPUT_START);
 	}

@@ -20,6 +20,8 @@
 #include "freertos/semphr.h"
 #include "esp_heap_caps.h"
 #include "odroid.h"
+#include "nvs_flash.h"
+#include "nvs.h"
 
 static SemaphoreHandle_t spiLock = NULL;
 
@@ -46,6 +48,12 @@ size_t free_bytes_spiram()
 
 void odroid_system_init()
 {
+    // NVS Flash
+    if (nvs_flash_init() != ESP_OK) {
+        nvs_flash_erase();
+        nvs_flash_init();
+    }
+    
     // SPI
     spiLock = xSemaphoreCreateMutex();
 
@@ -58,9 +66,6 @@ void odroid_system_init()
 
     // LCD
     spi_lcd_init();
-
-    // NVS Flash
-    // nvs_flash_init();
 
     // Input
     odroid_input_init();
