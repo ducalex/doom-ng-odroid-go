@@ -492,21 +492,6 @@ void M_DrawReadThis2(void)
 // EPISODE SELECT
 //
 
-//
-// episodes_e provides numbers for the episode menu items. The default is
-// 4, to accomodate Ultimate Doom. If the user is running anything else,
-// this is accounted for in the code.
-//
-
-enum
-{
-  ep1,
-  ep2,
-  ep3,
-  ep4,
-  ep_end
-} episodes_e;
-
 // The definitions of the Episodes menu
 
 menuitem_t EpisodeMenu[]=
@@ -514,17 +499,19 @@ menuitem_t EpisodeMenu[]=
   {1,"M_EPI1", M_Episode,'k'},
   {1,"M_EPI2", M_Episode,'t'},
   {1,"M_EPI3", M_Episode,'i'},
-  {1,"M_EPI4", M_Episode,'t'}
+  {1,"M_EPI4", M_Episode,'t'},
+  {1,"M_EPI5", M_Episode,'t'},
+  {1,"M_EPI6", M_Episode,'t'}
 };
 
 menu_t EpiDef =
 {
-  ep_end,        // # of menu items
+  1,             // # of menu items
   &MainDef,      // previous menu
   EpisodeMenu,   // menuitem_t ->
   M_DrawEpisode, // drawing routine ->
   48,63,         // x,y
-  ep1            // lastOn
+  0              // lastOn
 };
 
 //
@@ -545,14 +532,6 @@ void M_Episode(int choice)
     M_SetupNextMenu(&ReadDef1);
     return;
   }
-
-  // Yet another hack...
-  if ( (gamemode == registered) && (choice > 2))
-    {
-    lprintf( LO_WARN,
-     "M_Episode: 4th episode requires UltimateDOOM\n");
-    choice = 0;
-    }
 
   epi = choice;
   M_SetupNextMenu(&NewDef);
@@ -2088,7 +2067,7 @@ static void M_DrawInstructions(void)
       M_DrawStringCentered(160, 20, CR_SELECT, "Type/edit filename and Press ENTER");
       break;
     case S_YESNO:
-    case S_CHOICE: 
+    case S_CHOICE:
       M_DrawStringCentered(160, 20, CR_SELECT, "Press left or right to choose");
       break;
     case S_RESET:
@@ -4553,7 +4532,7 @@ boolean M_Responder (event_t* ev) {
     if (ch == key_menu_left) {
       if (ptr1->var.def->type == def_int) {
         int value = *ptr1->var.def->location.pi;
-      
+
         value = value - 1;
         if ((ptr1->var.def->minvalue != UL &&
              value < ptr1->var.def->minvalue))
@@ -4581,7 +4560,7 @@ boolean M_Responder (event_t* ev) {
     if (ch == key_menu_right) {
       if (ptr1->var.def->type == def_int) {
         int value = *ptr1->var.def->location.pi;
-      
+
         value = value + 1;
         if ((ptr1->var.def->minvalue != UL &&
              value < ptr1->var.def->minvalue))
@@ -5539,12 +5518,7 @@ void M_Init(void)
   messageLastMenuActive = menuactive;
   quickSaveSlot = -1;
 
-  // Here we could catch other version dependencies,
-  //  like HELP1/2, and four episodes.
-
-  switch(gamemode)
-    {
-    case commercial:
+  if (gamemode == commercial) {
       // This is used because DOOM 2 had only one HELP
       //  page. I use CREDIT as second page now, but
       //  kept this hack for educational purposes.
@@ -5556,24 +5530,15 @@ void M_Init(void)
       ReadDef1.x = 330;
       ReadDef1.y = 165;
       ReadMenu1[0].routine = M_FinishReadThis;
-      break;
-    case registered:
-      // Episode 2 and 3 are handled,
-      //  branching to an ad screen.
+  }
 
-      // killough 2/21/98: Fix registered Doom help screen
-      // killough 10/98: moved to second screen, moved up to the top
-      ReadDef2.y = 15;
-
-    case shareware:
-      // We need to remove the fourth episode.
-      EpiDef.numitems--;
-      break;
-    case retail:
-      // We are fine.
-    default:
+  // Detect the number of available episodes
+  for (int i = 0; i < 6; i++) {
+    if (W_CheckNumForName(EpisodeMenu[i].name) == -1) {
+      EpiDef.numitems = i;
       break;
     }
+  }
 
   M_InitHelpScreen();   // init the help screen       // phares 4/08/98
   M_InitExtendedHelp(); // init extended help screens // phares 3/30/98

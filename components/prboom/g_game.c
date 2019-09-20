@@ -2099,23 +2099,18 @@ void G_InitNew(skill_t skill, int episode, int map)
   if (skill > sk_nightmare)
     skill = sk_nightmare;
 
-  if (episode < 1)
+  if (episode < 1 || gamemode == shareware) {
     episode = 1;
-
-  if (gamemode == retail)
-    {
-      if (episode > 4)
-        episode = 4;
+  }
+  else {
+    // Check if the episode exists
+    char episodename[8];
+    sprintf(episodename, "M_EPI%d", episode);
+    if (W_CheckNumForName(episodename) == -1) {
+      lprintf(LO_WARN, "G_InitNew: Invalid episode selected: %s\n", episodename);
+      episode = 1;
     }
-  else
-    if (gamemode == shareware)
-      {
-        if (episode > 1)
-          episode = 1; // only start episode 1 on shareware
-      }
-    else
-      if (episode > 3)
-        episode = 3;
+  }
 
   if (map < 1)
     map = 1;
@@ -2252,7 +2247,7 @@ void G_RecordDemo (const char* name)
       /* Now read the demo to find the last save slot */
       do {
         byte buf[5];
-      
+
         rc = fread(buf, 1, bytes_per_tic, demofp);
         if (buf[0] == DEMOMARKER) break;
         if (buf[bytes_per_tic-1] & BT_SPECIAL)
