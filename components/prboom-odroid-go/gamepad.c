@@ -67,8 +67,13 @@ static const JsKeyMap keymap[]={
 };
 
 static int cheatCurrentLevel = 1;
+static bool cheatAppliedIgnorePress = false;
 static volatile int joyVal = 0;
 
+#define KEY_TRANSITION_DOWN(key) (gamepad_state.values[key] && !gamepad_state.previous[key])
+#define KEY_TRANSITION_UP(key) (!gamepad_state.values[key] && gamepad_state.previous[key])
+#define KEY_DOWN(key) (gamepad_state.values[key])
+#define KEY_UP(key) (!gamepad_state.values[key])
 
 static void ApplyCheat(char *code)
 {
@@ -83,24 +88,24 @@ static void JoystickReadCallback(odroid_input_state gamepad_state)
 	int result = 0;
 
 	for (int i = 0; i < ODROID_INPUT_MAX; i++) {
-		result |= (gamepad_state.values[i] ? 0 : 1) << i;
+		result |= (KEY_DOWN(i) ? 0 : 1) << i;
 	}
 
-	if (gamepad_state.values[ODROID_INPUT_START]) {
-		if (gamepad_state.values[ODROID_INPUT_UP] && !gamepad_state.previous[ODROID_INPUT_UP]) { // brightness up
+	if (KEY_DOWN(ODROID_INPUT_START)) {
+		if (KEY_TRANSITION_DOWN(ODROID_INPUT_UP)) { // brightness up
 			backlight_percentage_set(backlight_percentage_get() + 25);
 			doom_printf("Brightness: %d", backlight_percentage_get());
 		}
-		if (gamepad_state.values[ODROID_INPUT_DOWN] && !gamepad_state.previous[ODROID_INPUT_DOWN]) { // brightness down
+		if (KEY_TRANSITION_DOWN(ODROID_INPUT_DOWN)) { // brightness down
 			backlight_percentage_set(backlight_percentage_get() - 25);
 			doom_printf("Brightness: %d", backlight_percentage_get());
 		}
-		if (gamepad_state.values[ODROID_INPUT_RIGHT] && !gamepad_state.previous[ODROID_INPUT_RIGHT]) { // volume up
+		if (KEY_TRANSITION_DOWN(ODROID_INPUT_RIGHT)) { // volume up
 			if (++snd_MasterVolume > 15) snd_MasterVolume = 15;
 			saveAudioSettings();
 			doom_printf("Volume: %d", snd_MasterVolume);
 		}
-		if (gamepad_state.values[ODROID_INPUT_LEFT] && !gamepad_state.previous[ODROID_INPUT_LEFT]) { // volume down
+		if (KEY_TRANSITION_DOWN(ODROID_INPUT_LEFT)) { // volume down
 			if (--snd_MasterVolume < 0) snd_MasterVolume = 0;
 			saveAudioSettings();
 			doom_printf("Volume: %d", snd_MasterVolume);
@@ -108,57 +113,75 @@ static void JoystickReadCallback(odroid_input_state gamepad_state)
 		result = ~(1 << ODROID_INPUT_START);
 	}
 
-	if (gamepad_state.values[ODROID_INPUT_MENU]) {
-		if (gamepad_state.values[ODROID_INPUT_UP] && !gamepad_state.previous[ODROID_INPUT_UP]) {
-			// Invulnerability
-			ApplyCheat("iddqd");
+	if (KEY_TRANSITION_UP(ODROID_INPUT_MENU) || KEY_TRANSITION_UP(ODROID_INPUT_VOLUME)) {
+		if (!cheatAppliedIgnorePress) {
+			result &= ~((KEY_TRANSITION_UP(ODROID_INPUT_MENU) ? 1 : 0) << ODROID_INPUT_MENU);
+			result &= ~((KEY_TRANSITION_UP(ODROID_INPUT_VOLUME) ? 1 : 0) << ODROID_INPUT_VOLUME);
 		}
-		if (gamepad_state.values[ODROID_INPUT_DOWN] && !gamepad_state.previous[ODROID_INPUT_DOWN]) {
-			//Full megaarmor protection (200%), all weapons, full ammo, and all the keys
-			ApplyCheat("idkfa");
-		}
-		if (gamepad_state.values[ODROID_INPUT_LEFT] && !gamepad_state.previous[ODROID_INPUT_LEFT]) {
-			//No clipping
-			ApplyCheat("idclip");
-		}
-		if (gamepad_state.values[ODROID_INPUT_RIGHT] && !gamepad_state.previous[ODROID_INPUT_RIGHT]) {
-			//200% health
-			ApplyCheat("idbeholdh");
-		}
-		result = ~(1 << ODROID_INPUT_MENU);
+		cheatAppliedIgnorePress = false;
 	}
 
-	if (gamepad_state.values[ODROID_INPUT_VOLUME]) {
-		if (gamepad_state.values[ODROID_INPUT_UP] && !gamepad_state.previous[ODROID_INPUT_UP]) {
+	// Cheats
+	if (KEY_DOWN(ODROID_INPUT_MENU)) {
+		if (KEY_TRANSITION_DOWN(ODROID_INPUT_UP)) {
+			// Invulnerability
+			ApplyCheat("iddqd");
+			cheatAppliedIgnorePress = true;
+		}
+		if (KEY_TRANSITION_DOWN(ODROID_INPUT_DOWN)) {
+			//Full megaarmor protection (200%), all weapons, full ammo, and all the keys
+			ApplyCheat("idkfa");
+			cheatAppliedIgnorePress = true;
+		}
+		if (KEY_TRANSITION_DOWN(ODROID_INPUT_LEFT)) {
+			//No clipping
+			ApplyCheat("idclip");
+			cheatAppliedIgnorePress = true;
+		}
+		if (KEY_TRANSITION_DOWN(ODROID_INPUT_RIGHT)) {
+			//200% health
+			ApplyCheat("idbeholdh");
+			cheatAppliedIgnorePress = true;
+		}
+		result |= 0xFFFFFFFF;
+	}
+
+	if (KEY_DOWN(ODROID_INPUT_VOLUME)) {
+		if (KEY_TRANSITION_DOWN(ODROID_INPUT_UP)) {
 			//Temporary light
 			ApplyCheat("idbeholdl");
+			cheatAppliedIgnorePress = true;
 		}
-		if (gamepad_state.values[ODROID_INPUT_DOWN] && !gamepad_state.previous[ODROID_INPUT_DOWN]) {
+		if (KEY_TRANSITION_DOWN(ODROID_INPUT_DOWN)) {
 			//Temporary berserk
 			ApplyCheat("idbeholds");
+			cheatAppliedIgnorePress = true;
 		}
-		if (gamepad_state.values[ODROID_INPUT_LEFT] && !gamepad_state.previous[ODROID_INPUT_LEFT]) {
+		if (KEY_TRANSITION_DOWN(ODROID_INPUT_LEFT)) {
 			//Temporary invisibility
 			ApplyCheat("idbeholdi");
+			cheatAppliedIgnorePress = true;
 		}
-		if (gamepad_state.values[ODROID_INPUT_RIGHT] && !gamepad_state.previous[ODROID_INPUT_RIGHT]) {
-			//Warp to different levels
+		if (KEY_TRANSITION_DOWN(ODROID_INPUT_RIGHT)) {
+			// Warp to different levels
+			/*
 			char code[9];
-			if(cheatCurrentLevel == 1 && gamemission == doom){
-				cheatCurrentLevel = 11; //Doom idclev codes are in the form E#M#
-			}
-			lprintf(LO_INFO, "cheatCurrentLevel = %02d\n", cheatCurrentLevel);
-			doom_printf("Cheat level %02d", cheatCurrentLevel);
 
-			sprintf(code, "idclev%02d", cheatCurrentLevel);
-			lprintf(LO_INFO, "idclev code: %s\n", code);
-			ApplyCheat(code);
 			cheatCurrentLevel++;
-			if(cheatCurrentLevel > 49){
-				cheatCurrentLevel = 1; 
-			}
+
+			if (cheatCurrentLevel < 11 && gamemission == doom)
+				cheatCurrentLevel = 11; //Doom idclev codes are in the form E#M#
+			if (cheatCurrentLevel > 49)
+				cheatCurrentLevel = 1;
+
+			lprintf(LO_INFO, "cheatCurrentLevel = %02d\n", cheatCurrentLevel);
+			doom_printf("Warping to level %02d", cheatCurrentLevel);
+			sprintf(code, "idclev%02d", cheatCurrentLevel);
+			ApplyCheat(code);
+			cheatAppliedIgnorePress = true;
+			*/
 		}
-		result = ~(1 << ODROID_INPUT_VOLUME);
+		result = 0xFFFFFFFF;
 	}
 
 	joyVal = result;
