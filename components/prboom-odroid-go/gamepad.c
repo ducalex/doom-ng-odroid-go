@@ -66,7 +66,6 @@ static const JsKeyMap keymap[]={
 	{0, NULL},
 };
 
-static int cheatCurrentLevel = 1;
 static bool cheatAppliedIgnorePress = false;
 static volatile int joyVal = 0;
 
@@ -74,13 +73,6 @@ static volatile int joyVal = 0;
 #define KEY_TRANSITION_UP(key) (!gamepad_state.values[key] && gamepad_state.previous[key])
 #define KEY_DOWN(key) (gamepad_state.values[key])
 #define KEY_UP(key) (!gamepad_state.values[key])
-
-static void ApplyCheat(char *code)
-{
-	for (int i = 0; i < strlen(code); i++){
-		M_FindCheats(code[i]);
-	}
-}
 
 
 static void JoystickReadCallback(odroid_input_state gamepad_state)
@@ -112,7 +104,7 @@ static void JoystickReadCallback(odroid_input_state gamepad_state)
 		}
 		result = ~(1 << ODROID_INPUT_START);
 	}
-
+/*
 	if (KEY_TRANSITION_UP(ODROID_INPUT_MENU) || KEY_TRANSITION_UP(ODROID_INPUT_VOLUME)) {
 		if (!cheatAppliedIgnorePress) {
 			result &= ~((KEY_TRANSITION_UP(ODROID_INPUT_MENU) ? 1 : 0) << ODROID_INPUT_MENU);
@@ -120,70 +112,7 @@ static void JoystickReadCallback(odroid_input_state gamepad_state)
 		}
 		cheatAppliedIgnorePress = false;
 	}
-
-	// Cheats
-	if (KEY_DOWN(ODROID_INPUT_MENU)) {
-		if (KEY_TRANSITION_DOWN(ODROID_INPUT_UP)) {
-			// Invulnerability
-			ApplyCheat("iddqd");
-			cheatAppliedIgnorePress = true;
-		}
-		if (KEY_TRANSITION_DOWN(ODROID_INPUT_DOWN)) {
-			//Full megaarmor protection (200%), all weapons, full ammo, and all the keys
-			ApplyCheat("idkfa");
-			cheatAppliedIgnorePress = true;
-		}
-		if (KEY_TRANSITION_DOWN(ODROID_INPUT_LEFT)) {
-			//No clipping
-			ApplyCheat("idclip");
-			cheatAppliedIgnorePress = true;
-		}
-		if (KEY_TRANSITION_DOWN(ODROID_INPUT_RIGHT)) {
-			//200% health
-			ApplyCheat("idbeholdh");
-			cheatAppliedIgnorePress = true;
-		}
-		result |= 0xFFFFFFFF;
-	}
-
-	if (KEY_DOWN(ODROID_INPUT_VOLUME)) {
-		if (KEY_TRANSITION_DOWN(ODROID_INPUT_UP)) {
-			//Temporary light
-			ApplyCheat("idbeholdl");
-			cheatAppliedIgnorePress = true;
-		}
-		if (KEY_TRANSITION_DOWN(ODROID_INPUT_DOWN)) {
-			//Temporary berserk
-			ApplyCheat("idbeholds");
-			cheatAppliedIgnorePress = true;
-		}
-		if (KEY_TRANSITION_DOWN(ODROID_INPUT_LEFT)) {
-			//Temporary invisibility
-			ApplyCheat("idbeholdi");
-			cheatAppliedIgnorePress = true;
-		}
-		if (KEY_TRANSITION_DOWN(ODROID_INPUT_RIGHT)) {
-			// Warp to different levels
-			/*
-			char code[9];
-
-			cheatCurrentLevel++;
-
-			if (cheatCurrentLevel < 11 && gamemission == doom)
-				cheatCurrentLevel = 11; //Doom idclev codes are in the form E#M#
-			if (cheatCurrentLevel > 49)
-				cheatCurrentLevel = 1;
-
-			lprintf(LO_INFO, "cheatCurrentLevel = %02d\n", cheatCurrentLevel);
-			doom_printf("Warping to level %02d", cheatCurrentLevel);
-			sprintf(code, "idclev%02d", cheatCurrentLevel);
-			ApplyCheat(code);
-			cheatAppliedIgnorePress = true;
-			*/
-		}
-		result = 0xFFFFFFFF;
-	}
-
+*/
 	joyVal = result;
 }
 

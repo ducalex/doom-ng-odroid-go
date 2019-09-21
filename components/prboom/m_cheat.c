@@ -466,6 +466,7 @@ static void cheat_mypos()
 static void cheat_rate()
 {
   rendering_stats ^= 1;
+  plyr->message = "";
 }
 
 // compatibility cheat

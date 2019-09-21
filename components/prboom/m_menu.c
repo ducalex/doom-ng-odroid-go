@@ -49,6 +49,7 @@
 #include "g_game.h"
 #include "s_sound.h"
 #include "sounds.h"
+#include "m_cheat.h"
 #include "m_menu.h"
 #include "d_deh.h"
 #include "m_misc.h"
@@ -147,7 +148,7 @@ char savegamestrings[10][SAVESTRINGSIZE];
 typedef struct
 {
   short status; // 0 = no cursor here, 1 = ok, 2 = arrows ok
-  char  name[10];
+  char  name[20];
 
   // choice = menu item #.
   // if status = 2,
@@ -236,6 +237,10 @@ void M_ReadSaveStrings(void);
 void M_QuickSave(void);
 void M_QuickLoad(void);
 
+void M_Cheats(int choice);
+void M_DrawCheats(void);
+void M_CheatSelect(int choice);
+
 void M_DrawMainMenu(void);
 void M_DrawReadThis1(void);
 void M_DrawReadThis2(void);
@@ -316,7 +321,7 @@ enum
   savegame,
   options,
   readthis,
-  quitdoom,
+  //quitdoom,
   main_end
 } main_e;
 
@@ -336,7 +341,7 @@ menuitem_t MainMenu[]=
   {1,"M_SAVEG", M_SaveGame,'s'},
   // Another hickup with Special edition.
   {1,"M_RDTHIS",M_ReadThis,'r'},
-  {1,"M_QUITG", M_QuitDOOM,'q'}
+  //{1,"M_QUITG", M_QuitDOOM,'q'}
 };
 
 menu_t MainDef =
@@ -345,7 +350,7 @@ menu_t MainDef =
   NULL,           // previous menu screen
   MainMenu,       // table that defines menu items
   M_DrawMainMenu, // drawing routine
-  97,64,          // initial cursor position
+  97, 72,         // initial cursor position
   0               // last menu item the user was on
 };
 
@@ -645,6 +650,7 @@ void M_ChooseSkill(int choice)
   M_ClearMenus ();
 }
 
+
 /////////////////////////////
 //
 // LOAD GAME MENU
@@ -931,16 +937,14 @@ void M_SaveGame (int choice)
 enum
 {
   general, // killough 10/98
-  // killough 4/6/98: move setup to be a sub-menu of OPTIONs
   setup,                                                    // phares 3/21/98
-  endgame,
-  messages,
-  /*    detail, obsolete -- killough */
+  // messages,
+  cheats,
   scrnsize,
   option_empty1,
-  mousesens,
-  /* option_empty2, submenu now -- killough */
+  // mousesens,
   soundvol,
+  endgame,
   opt_end
 } options_e;
 
@@ -951,14 +955,13 @@ menuitem_t OptionsMenu[]=
   // killough 4/6/98: move setup to be a sub-menu of OPTIONs
   {1,"M_GENERL", M_General, 'g'},      // killough 10/98
   {1,"M_SETUP",  M_Setup,   's'},                          // phares 3/21/98
-  {1,"M_ENDGAM", M_EndGame,'e'},
-  {1,"M_MESSG",  M_ChangeMessages,'m'},
-  /*    {1,"M_DETAIL",  M_ChangeDetail,'g'},  unused -- killough */
+  // {1,"M_MESSG",  M_ChangeMessages,'m'},
+  {1,":Cheats", M_Cheats, 'e'},
   {2,"M_SCRNSZ", M_SizeDisplay,'s'},
   {-1,"",0},
-  {1,"M_MSENS",  M_ChangeSensitivity,'m'},
-  /* {-1,"",0},  replaced with submenu -- killough */
-  {1,"M_SVOL",   M_Sound,'s'}
+  // {1,"M_MSENS",  M_ChangeSensitivity,'m'},
+  {1,"M_SVOL",   M_Sound,'s'},
+  {1,"M_ENDGAM", M_EndGame,'e'},
 };
 
 menu_t OptionsDef =
@@ -984,8 +987,8 @@ void M_DrawOptions(void)
   // proff/nicolas 09/20/98 -- changed for hi-res
   V_DrawNamePatch(108, 15, 0, "M_OPTTTL", CR_DEFAULT, VPT_STRETCH);
 
-  V_DrawNamePatch(OptionsDef.x + 120, OptionsDef.y+LINEHEIGHT*messages, 0,
-      msgNames[showMessages], CR_DEFAULT, VPT_STRETCH);
+  // V_DrawNamePatch(OptionsDef.x + 120, OptionsDef.y+LINEHEIGHT*messages, 0,
+  //     msgNames[showMessages], CR_DEFAULT, VPT_STRETCH);
 
   M_DrawThermo(OptionsDef.x,OptionsDef.y+LINEHEIGHT*(scrnsize+1),
    9,screenSize);
@@ -1063,6 +1066,81 @@ void M_QuitDOOM(int choice)
     sprintf(endstring,"%s\n\n%s", endmsg[gametic%(NUM_QUITMESSAGES-1)+1], s_DOSY);
 
   M_StartMessage(endstring,M_QuitResponse,true);
+}
+
+/////////////////////////////
+//
+// CHEATS MENU
+//
+
+menuitem_t CheatsMenu[]=
+{
+  {1,"", M_CheatSelect,'1'},
+  {1,"", M_CheatSelect,'2'},
+  {1,"", M_CheatSelect,'3'},
+  {1,"", M_CheatSelect,'4'},
+  {1,"", M_CheatSelect,'5'},
+  {1,"", M_CheatSelect,'6'},
+  {1,"", M_CheatSelect,'7'},
+  {1,"", M_CheatSelect,'8'},
+  {1,"", M_CheatSelect,'9'},
+  //{1,"", M_CheatSelect,'0'},
+};
+
+typedef struct {
+  char code[10];
+  char desc[20];
+} menu_cheat_t;
+
+static const menu_cheat_t cheats_list[] = {
+  {"idkfa",      "All Weapons + Keys"},
+  {"iddqd",      "Invulnerability"},
+  {"idbeholdh",  "200% Health"},
+  {"idchoppers", "Get Chainsaw"},
+  {"idbeholdl",  "Toggle Light Ampli."},
+  {"idbeholds",  "Toggle Berserk"},
+  {"idbeholdi",  "Toggle Invisibility"},
+  {"idclip",     "Toggle clipping"},
+  {"idrate",     "Toggle FPS"},
+  //{"          ", "Skip Level"},
+};
+
+
+menu_t CheatsDef =
+{
+  sizeof(CheatsMenu) / sizeof(menuitem_t),
+  &OptionsDef,
+  CheatsMenu,
+  M_DrawCheats,
+  80, 24,
+  0
+};
+
+
+void M_Cheats(int choice)
+{
+  M_SetupNextMenu(&CheatsDef);
+}
+
+
+void M_DrawCheats(void)
+{
+  M_WriteText(72, 10, "Cheats");
+  for (int i = 0; i < CheatsDef.numitems; i++) {
+    M_DrawSaveLoadBorder(CheatsDef.x, CheatsDef.y + LINEHEIGHT * i);
+    M_WriteText(CheatsDef.x, CheatsDef.y + LINEHEIGHT * i, cheats_list[i].desc);
+  }
+}
+
+void M_CheatSelect(int choice)
+{
+  //M_ClearMenus();
+
+  char *code = cheats_list[choice].code;
+
+  for (int i = 0; i < strlen(code); i++){
+		M_FindCheats(code[i]);
+	}
 }
 
 /////////////////////////////
@@ -5265,12 +5343,17 @@ void M_Drawer (void)
   max = currentMenu->numitems;
 
   for (i=0;i<max;i++)
+  {
+    if (currentMenu->menuitems[i].name[0] == ':')
     {
-      if (currentMenu->menuitems[i].name[0])
-        V_DrawNamePatch(x,y,0,currentMenu->menuitems[i].name,
-            CR_DEFAULT, VPT_STRETCH);
-      y += LINEHEIGHT;
+      M_WriteText(x, y + 4, currentMenu->menuitems[i].name);
     }
+    else if (currentMenu->menuitems[i].name[0])
+    {
+      V_DrawNamePatch(x, y, 0, currentMenu->menuitems[i].name, CR_DEFAULT, VPT_STRETCH);
+    }
+    y += LINEHEIGHT;
+  }
 
   // DRAW SKULL
 
@@ -5522,7 +5605,7 @@ void M_Init(void)
       // This is used because DOOM 2 had only one HELP
       //  page. I use CREDIT as second page now, but
       //  kept this hack for educational purposes.
-      MainMenu[readthis] = MainMenu[quitdoom];
+      //MainMenu[readthis] = MainMenu[quitdoom];
       MainDef.numitems--;
       MainDef.y += 8;
       NewDef.prevMenu = &MainDef;

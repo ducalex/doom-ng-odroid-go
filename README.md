@@ -9,11 +9,12 @@ This is an improvement of [doom-ng-odroid-go](https://github.com/mad-ady/doom-ng
 - Brightness controls
 - Volume controls
 - WAD selector on start
-
+- Mods support (Limited by available memory)
+- Cheats menu (Options -> Cheats)
 
 # Usage
 
-Copy Doom-*.fw to your sdcard folder `odroid/firmware` and PRBOOM.WAD and DOOM.WAD to `roms/doom`. Power up the Odroid GO while holding B. Then flash Doom from the menu. You can add more than one WAD at a time, a prompt will be shown on power up.
+Copy Doom-*.fw to your SD Card folder `odroid/firmware` and PRBOOM.WAD and DOOM.WAD to `roms/doom`. Power up the Odroid GO while holding B. Then flash Doom from the menu. You can add more than one WAD at a time, a prompt will be shown on power up.
 
 # Controls
 
@@ -31,24 +32,7 @@ START+LEFT  | Sound down
 START+RIGHT | Sound up
 
 
-### Cheats:
-
-Key | Action
--|-
-MENU+UP      | 
-MENU+DOWN    |
-MENU+LEFT    |  
-MENU+RIGHT   | 
-VOLUME+UP    |
-VOLUME+DOWN  | 
-VOLUME+LEFT  |
-VOLUME+RIGHT | 
-
-
-
 # To do / Known issues
-
-- Cheat menu instead of the weird key combinations.
 
 - Fix the random lags. It might be caused by SD card access on the shared bus.
 
