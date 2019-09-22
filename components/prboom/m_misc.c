@@ -179,6 +179,7 @@ extern const char* S_music_files[]; // cournia
  * killough 10/98
  */
 int map_point_coordinates;
+int disk_icon;
 
 default_t defaults[] =
 {
@@ -188,6 +189,7 @@ default_t defaults[] =
    def_int,ss_none}, // compatibility level" - CPhipps
   {"realtic_clock_rate",{&realtic_clock_rate},{100},0,UL,
    def_int,ss_none}, // percentage of normal speed (35 fps) realtic clock runs at
+  {"disk_icon",{&disk_icon},{0},0,1, def_bool,ss_none},
   {"max_player_corpse", {&bodyquesize}, {32},-1,UL,   // killough 2/8/98
    def_int,ss_none}, // number of dead bodies in view supported (-1 = no limit)
   {"flashing_hom",{&flashing_hom},{0},0,1,
@@ -287,7 +289,7 @@ default_t defaults[] =
   {"comp_maskedanim",{&default_comp[comp_maskedanim]},{0},0,1,def_bool,ss_comp,&comp[comp_maskedanim]},
 
   {"Sound settings",{NULL},{0},UL,UL,def_none,ss_none},
-  {"sound_card",{&snd_card},{-1},-1,7,       // jff 1/18/98 allow Allegro drivers
+  {"sound_card",{&snd_card},{1},0,2,       // jff 1/18/98 allow Allegro drivers
    def_int,ss_none}, // select sounds driver (DOS), -1 is autodetect, 0 is none; in Linux, non-zero enables sound
   {"music_card",{&mus_card},{-1},-1,9,       //  to be set,  -1 = autodetect
    def_int,ss_none}, // select music driver (DOS), -1 is autodetect, 0 is none"; in Linux, non-zero enables music
@@ -368,10 +370,8 @@ default_t defaults[] =
    def_bool,ss_none},
   {"gl_use_shared_texture_palette",{&gl_use_shared_texture_palette},{0},0,1,
    def_bool,ss_none},
-#ifdef GL_DOOM
   {"gl_sprite_offset",{&gl_sprite_offset},{0}, 0, 5,
    def_int,ss_none}, // amount to bring items out of floor (GL) Mead 8/13/03
-#endif
 #endif
 
   {"Mouse settings",{NULL},{0},UL,UL,def_none,ss_none},
@@ -995,7 +995,7 @@ void M_LoadDefaults (void)
               }
             break;
             }
-          
+
           if (newstring != NULL)
             free(newstring);
         }

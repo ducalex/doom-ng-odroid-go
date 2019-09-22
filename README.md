@@ -11,6 +11,7 @@ This is an improvement of [doom-ng-odroid-go](https://github.com/mad-ady/doom-ng
 - WAD selector on start
 - Mods support (Limited by available memory)
 - Cheats menu (Options -> Cheats)
+- Levels menu (Options -> Level Select)
 
 # Usage
 
@@ -40,6 +41,7 @@ START+RIGHT | Sound up
 
 - Make it possible to delete savegames.
 
+- Add support for external DAC
 
 # Compilation
 
