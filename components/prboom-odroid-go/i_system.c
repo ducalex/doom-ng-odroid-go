@@ -34,30 +34,20 @@
  */
 
 #include <stdio.h>
-
 #include <stdarg.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <signal.h>
-#ifdef _MSC_VER
-#define    F_OK    0    /* Check for file existence */
-#define    W_OK    2    /* Check for write permission */
-#define    R_OK    4    /* Check for read permission */
-#include <io.h>
-#include <direct.h>
-#else
-#include <unistd.h>
-#endif
-#include <sys/stat.h>
-
-
-
-#include "config.h"
-#include <unistd.h>
 #include <sched.h>
 #include <fcntl.h>
-#include <sys/stat.h>
 #include <errno.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/unistd.h>
+#include <sys/time.h>
+#include <sys/stat.h>
+
+#include "config.h"
 
 #include "m_argv.h"
 #include "lprintf.h"
@@ -71,10 +61,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include <string.h>
-#include <sys/unistd.h>
-#include <sys/stat.h>
-#include <sys/time.h>
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -98,7 +84,6 @@ typedef struct {
 
 #define NO_MMAP_HANDLES 128
 static MmapHandle mmapHandle[NO_MMAP_HANDLES];
-
 
 
 static unsigned long getMsTicks()
@@ -181,32 +166,32 @@ const char *I_DoomSaveDir(void)
 int I_Open(const char *fname, int flags)
 {
 	lprintf(LO_INFO, "I_Open: Opening File: %s\n", fname);
-	
+
 	odroid_spi_bus_acquire();
 	FILE *handle = fopen(fname, "rb");
 	odroid_spi_bus_release();
 
 	if (!handle) {
-		lprintf(LO_INFO, "I_Open: open %s failed\n", fname);	
+		lprintf(LO_INFO, "I_Open: open %s failed\n", fname);
 		return -1;
 	}
 
-	return handle;
+	return (int)handle;
 }
 
 
 void I_Read(int handle, void* vbuf, size_t sz)
 {
 	odroid_spi_bus_acquire();
-	
+
 	for (int i = 0; i < 20; i++) {
-		if (fread(vbuf, sz, 1, handle) == 1) {
+		if (fread(vbuf, sz, 1, (FILE*)handle) == 1) {
 			odroid_spi_bus_release();
 			return;
 		}
 		lprintf(LO_INFO, "Error Reading %d bytes\n", (int)sz);
 	}
-	
+
 	odroid_spi_bus_release();
 
 	I_Error("I_Read: Error Reading %d bytes after 20 tries", (int)sz);
@@ -216,9 +201,9 @@ void I_Read(int handle, void* vbuf, size_t sz)
 int I_Lseek(int handle, off_t offset, int whence)
 {
 	odroid_spi_bus_acquire();
-	int seeked = fseek(handle, offset, whence);
+	int seeked = fseek((FILE*)handle, offset, whence);
 	odroid_spi_bus_release();
-	
+
 	return seeked;
 }
 
@@ -240,9 +225,9 @@ int I_Filelength(int handle)
 void I_Close(int handle)
 {
 	lprintf(LO_INFO, "I_Open: Closing File: %d\n", handle);
-	
+
 	odroid_spi_bus_acquire();
-	fclose(handle);
+	fclose((FILE*)handle);
 	odroid_spi_bus_release();
 }
 
@@ -262,7 +247,7 @@ char* I_FindFile(const char* fname, const char* ext)
 		lprintf(LO_INFO, "Not found.\n");
 	}
 	odroid_spi_bus_release();
-	
+
 	return ret;
 }
 
@@ -287,27 +272,23 @@ void I_EndDiskAccess(void)
 
 static int getFreeMMapHandle()
 {
-//	lprintf(LO_INFO, "getFreeMMapHandle: Get free handle... ");
-	int n=NO_MMAP_HANDLES;
-	while (mmapHandle[nextHandle].used!=0 && n!=0) {
+	int n = NO_MMAP_HANDLES;
+	while (mmapHandle[nextHandle].used != 0 && n != 0) {
 		nextHandle++;
-		if (nextHandle==NO_MMAP_HANDLES) nextHandle=0;
+		if (nextHandle == NO_MMAP_HANDLES) nextHandle = 0;
 		n--;
 	}
-	if (n==0) {
+	if (n == 0) {
 		I_Error("getFreeMMapHandle: More mmaps than NO_MMAP_HANDLES!");
 	}
-	
 	if (mmapHandle[nextHandle].addr) {
-		//spi_flash_munmap(mmapHandle[nextHandle].handle);
 		free(mmapHandle[nextHandle].addr);
-		mmapHandle[nextHandle].addr=NULL;
-//		printf("mmap: freeing handle %d\n", nextHandle);
+		mmapHandle[nextHandle].addr = NULL;
 	}
-	int r=nextHandle;
+	int r = nextHandle;
 	nextHandle++;
-	if (nextHandle==NO_MMAP_HANDLES) nextHandle=0;
-//	lprintf(LO_INFO, "Got: %d\n", r);
+	if (nextHandle == NO_MMAP_HANDLES) nextHandle = 0;
+
 	return r;
 }
 
@@ -317,12 +298,10 @@ void freeUnusedMmaps(void)
 	lprintf(LO_INFO, "freeUnusedMmaps...\n");
 	for (int i=0; i<NO_MMAP_HANDLES; i++) {
 		//Check if handle is not in use but is mapped.
-		if (mmapHandle[i].used==0 && mmapHandle[i].addr!=NULL) {
-			//spi_flash_munmap(mmapHandle[i].handle);
+		if (mmapHandle[i].used == 0 && mmapHandle[i].addr != NULL) {
 			free(mmapHandle[i].addr);
-			mmapHandle[i].addr=NULL;
-			mmapHandle[i].ifd=NULL;
-			//printf("Freeing handle %d\n", i);
+			mmapHandle[i].addr = NULL;
+			mmapHandle[i].ifd = 0;
 		}
 	}
 }
@@ -331,7 +310,6 @@ void freeUnusedMmaps(void)
 void *I_Mmap(void *addr, size_t length, int prot, int flags, int ifd, off_t offset)
 {
 	int i;
-	esp_err_t err;
 	void *retaddr = NULL;
 
 	for (i = 0; i < NO_MMAP_HANDLES; i++) {

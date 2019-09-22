@@ -40,8 +40,8 @@ typedef struct {
 	int *key;
 } JsKeyMap;
 
-static char *key_yes = 'y';
-static char *key_no = 'n';
+static int key_yes = 'y';
+static int key_no = 'n';
 
 static const JsKeyMap keymap[]={
 	{1 << ODROID_INPUT_UP,    &key_up},
@@ -66,7 +66,6 @@ static const JsKeyMap keymap[]={
 	{0, NULL},
 };
 
-static bool cheatAppliedIgnorePress = false;
 static volatile int joyVal = 0;
 
 #define KEY_TRANSITION_DOWN(key) (gamepad_state.values[key] && !gamepad_state.previous[key])
