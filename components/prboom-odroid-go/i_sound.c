@@ -93,7 +93,6 @@ unsigned char mixbuffer[MIXBUFFERSIZE] = {0};
 int sfx_lengths[NUMSFX];
 
 int snd_card, mus_card, snd_samplerate;
-int snd_MasterVolume = 8;
 bool musicPlaying = false;
 
 //
@@ -269,7 +268,7 @@ void IRAM_ATTR I_UpdateSound( void )
     {
         int totalSample = 0; // float
         int totalChannelCount = 0;
-        
+
         if (snd_SfxVolume > 0) {
             for (int chan = 0; chan < NUM_MIX_CHANNELS; chan++)
             {
@@ -290,11 +289,11 @@ void IRAM_ATTR I_UpdateSound( void )
                     }
                 }
             }
-            
+
             // Adjust for sfx volume
             totalSample /= (16 - snd_SfxVolume);
         }
-        
+
         if (musicPlaying && snd_MusicVolume > 0) {
             int16_t stream[2] = {0};
             music_player->render(&stream, 1); // It returns 2 (stereo) 16bits values per sample
@@ -359,7 +358,7 @@ void I_InitSound(void)
     }
 
     lprintf( LO_INFO, " pre-cached all sound data\n");
-    
+
     // Load volume settings from NVS
     nvs_handle nvs_h;
     nvs_open("audio", NVS_READWRITE, &nvs_h);

@@ -78,13 +78,15 @@ typedef struct
 // the set of channels available
 static channel_t *channels;
 
-// These are not used, but should be (menu).
 // Maximum volume of a sound effect.
 // Internal default is max out of 0-15.
 int snd_SfxVolume = 15;
 
-// Maximum volume of music. Useless so far.
+// Maximum volume of music.
 int snd_MusicVolume = 15;
+
+// Maximum volume of master.
+int snd_MasterVolume = 8;
 
 // whether songs are mus_paused
 static boolean mus_paused;
@@ -419,6 +421,18 @@ void S_UpdateSounds(void* listener_p)
             S_StopChannel(cnum);
         }
     }
+}
+
+
+
+void S_SetMasterVolume(int volume)
+{
+  if (!snd_card)
+    return;
+  if (volume < 0 || volume > 15)
+    I_Error("S_SetMasterVolume: Attempt to set master volume at %d", volume);
+  snd_MasterVolume = volume;
+  I_SetMusicVolume(snd_MusicVolume);
 }
 
 

@@ -217,6 +217,7 @@ void M_QuitDOOM(int choice);
 
 void M_ChangeMessages(int choice);
 void M_ChangeSensitivity(int choice);
+void M_SoundVol(int choice);
 void M_SfxVol(int choice);
 void M_MusicVol(int choice);
 /* void M_ChangeDetail(int choice);  unused -- killough */
@@ -1153,10 +1154,12 @@ void M_CheatSelect(int choice)
 
 enum
 {
+  master_vol,
+  master_empty,
   sfx_vol,
-  sfx_empty1,
+  sfx_empty,
   music_vol,
-  sfx_empty2,
+  music_empty,
   sound_end
 } sound_e;
 
@@ -1164,6 +1167,8 @@ enum
 
 menuitem_t SoundMenu[]=
 {
+  {2,"M_SVOL",M_SoundVol,'s'},
+  {-1,"",0},
   {2,"M_SFXVOL",M_SfxVol,'s'},
   {-1,"",0},
   {2,"M_MUSVOL",M_MusicVol,'m'},
@@ -1176,7 +1181,7 @@ menu_t SoundDef =
   &OptionsDef,
   SoundMenu,
   M_DrawSound,
-  80,64,
+  80,48,
   0
 };
 
@@ -1186,12 +1191,9 @@ menu_t SoundDef =
 
 void M_DrawSound(void)
 {
-  // CPhipps - patch drawing updated
-  V_DrawNamePatch(60, 38, 0, "M_SVOL", CR_DEFAULT, VPT_STRETCH);
-
-  M_DrawThermo(SoundDef.x,SoundDef.y+LINEHEIGHT*(sfx_vol+1),16,snd_SfxVolume);
-
-  M_DrawThermo(SoundDef.x,SoundDef.y+LINEHEIGHT*(music_vol+1),16,snd_MusicVolume);
+  M_DrawThermo(SoundDef.x, SoundDef.y + LINEHEIGHT * (master_vol+1), 16, snd_MasterVolume);
+  M_DrawThermo(SoundDef.x, SoundDef.y + LINEHEIGHT * (sfx_vol+1), 16, snd_SfxVolume);
+  M_DrawThermo(SoundDef.x, SoundDef.y + LINEHEIGHT * (music_vol+1), 16, snd_MusicVolume);
 }
 
 void M_Sound(int choice)
@@ -1199,38 +1201,34 @@ void M_Sound(int choice)
   M_SetupNextMenu(&SoundDef);
 }
 
+void M_SoundVol(int choice)
+{
+  if (choice == 1 && snd_MasterVolume < 15)
+      snd_MasterVolume++;
+  if (choice == 0 && snd_MasterVolume > 0)
+    snd_MasterVolume--;
+
+  S_SetMasterVolume(snd_MasterVolume);
+}
+
 void M_SfxVol(int choice)
 {
-  switch(choice)
-    {
-    case 0:
-      if (snd_SfxVolume)
-        snd_SfxVolume--;
-      break;
-    case 1:
-      if (snd_SfxVolume < 15)
-        snd_SfxVolume++;
-      break;
-    }
+  if (choice == 1 && snd_SfxVolume < 15)
+      snd_SfxVolume++;
+  if (choice == 0 && snd_SfxVolume > 0)
+    snd_SfxVolume--;
 
-  S_SetSfxVolume(snd_SfxVolume /* *8 */);
+  S_SetSfxVolume(snd_SfxVolume);
 }
 
 void M_MusicVol(int choice)
 {
-  switch(choice)
-    {
-    case 0:
-      if (snd_MusicVolume)
-        snd_MusicVolume--;
-      break;
-    case 1:
-      if (snd_MusicVolume < 15)
-        snd_MusicVolume++;
-      break;
-    }
+  if (choice == 1 && snd_MusicVolume < 15)
+      snd_MusicVolume++;
+  if (choice == 0 && snd_MusicVolume > 0)
+    snd_MusicVolume--;
 
-  S_SetMusicVolume(snd_MusicVolume /* *8 */);
+  S_SetMusicVolume(snd_MusicVolume);
 }
 
 /////////////////////////////
