@@ -2834,7 +2834,7 @@ enum {
 
 static const char *renderfilters[] = {"none", "point", "linear", "rounded"};
 static const char *edgetypes[] = {"jagged", "sloped"};
-static const char *soundcards[] = {"NONE", "SPEAKER", "DAC"};
+static const char *soundcards[] = {"NONE", "SPEAKER", "EXT. DAC"};
 
 setup_menu_t gen_settings3[] = { // General Settings screen2
 
