@@ -1,0 +1,5 @@
+set(COMPONENT_SRCDIRS ".")
+set(COMPONENT_ADD_INCLUDEDIRS ".")
+set(COMPONENT_REQUIRES "odroid-go prboom-odroid-go prboom-wad-tables")
+register_component()
+component_compile_options(-Wno-error=char-subscripts -Wno-error=unused-value -Wno-error=parentheses -Wno-error=int-to-pointer-cast -Wno-pointer-sign -Wno-error=unused-but-set-parameter -Wno-error=maybe-uninitialized -O3)
