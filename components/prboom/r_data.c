@@ -410,15 +410,15 @@ static inline int between(int l,int u,int x)
 
 const lighttable_t* R_ColourMap(int lightlevel, fixed_t spryscale)
 {
-  if (fixedcolormap) return fixedcolormap;
-  else {
-    if (curline)
+    if (fixedcolormap) 
+      return fixedcolormap;
+
+    if (curline) {
       if (curline->v1->y == curline->v2->y)
         lightlevel -= 1 << LIGHTSEGSHIFT;
-      else
-        if (curline->v1->x == curline->v2->x)
+      else if (curline->v1->x == curline->v2->x)
           lightlevel += 1 << LIGHTSEGSHIFT;
-
+    }
     lightlevel += extralight << LIGHTSEGSHIFT;
 
     /* cph 2001/11/17 -
@@ -436,7 +436,6 @@ const lighttable_t* R_ColourMap(int lightlevel, fixed_t spryscale)
           ((256-lightlevel)*2*NUMCOLORMAPS/256) - 4
           - (FixedMul(spryscale,pspriteiscale)/2 >> LIGHTSCALESHIFT)
           )*256;
-  }
 }
 
 //

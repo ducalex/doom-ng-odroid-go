@@ -74,6 +74,9 @@ void checksum_gamestate(int tic) {
     unsigned char digest[16];
     char buffer[2048];
 
+    if (!outfile)
+      return;
+
     fprintf(outfile,"%6d, ", tic);
 
     /* based on "ArchivePlayers" */

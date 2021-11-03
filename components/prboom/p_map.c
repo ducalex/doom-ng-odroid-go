@@ -1499,19 +1499,19 @@ boolean PTR_ShootTraverse (intercept_t* in)
     if (li->special)
       P_ShootSpecialLine (shootthing, li);
 
-      if (li->flags & ML_TWOSIDED)
-  {  // crosses a two sided (really 2s) line
-    P_LineOpening (li);
-    dist = FixedMul(attackrange, in->frac);
+    if (li->flags & ML_TWOSIDED)
+      {  // crosses a two sided (really 2s) line
+      P_LineOpening (li);
+      dist = FixedMul(attackrange, in->frac);
 
-    // killough 11/98: simplify
+      // killough 11/98: simplify
 
-    if ((li->frontsector->floorheight==li->backsector->floorheight ||
-         (slope = FixedDiv(openbottom - shootz , dist)) <= aimslope) &&
-        (li->frontsector->ceilingheight==li->backsector->ceilingheight ||
-         (slope = FixedDiv (opentop - shootz , dist)) >= aimslope))
-      return true;      // shot continues
-  }
+      if ((li->frontsector->floorheight==li->backsector->floorheight ||
+          (slope = FixedDiv(openbottom - shootz , dist)) <= aimslope) &&
+          (li->frontsector->ceilingheight==li->backsector->ceilingheight ||
+          (slope = FixedDiv (opentop - shootz , dist)) >= aimslope))
+        return true;      // shot continues
+      }
 
     // hit line
     // position a bit closer

@@ -1831,7 +1831,7 @@ void WI_loadData(void)
 {
   int   i;
   int   j;
-  char  name[9];  // limited to 8 characters
+  char  name[32];  // limited to 8 characters
   anim_t* a;
 
   if (gamemode != commercial)

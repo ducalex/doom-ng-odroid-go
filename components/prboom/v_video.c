@@ -504,7 +504,6 @@ static unsigned int *Palettes32 = NULL;
 static int currentPaletteIndex = 0;
 
 
-#include "GAMMATBL.h"
 //
 // V_UpdateTrueColorPalette
 //

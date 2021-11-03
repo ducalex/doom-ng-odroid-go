@@ -19,6 +19,7 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "esp_heap_caps.h"
+#include "driver/gpio.h"
 #include "odroid.h"
 #include "nvs_flash.h"
 #include "nvs.h"

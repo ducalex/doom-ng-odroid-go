@@ -105,7 +105,7 @@ const char* sprnames[NUMSPRITES+1] = {
 
 state_t *states;
 
-const state_t const rostates[NUMSTATES] = {
+const state_t rostates[NUMSTATES] = {
   {SPR_TROO,0,-1,NULL,S_NULL,0,0},  // S_NULL
   {SPR_SHTG,4,0,A_Light0,S_NULL,0,0}, // S_LIGHTDONE
   {SPR_PUNG,0,1,A_WeaponReady,S_PUNCH,0,0}, // S_PUNCH
@@ -1256,7 +1256,7 @@ const state_t const rostates[NUMSTATES] = {
 
 mobjinfo_t *mobjinfo;
 
-const mobjinfo_t const romobjinfo[NUMMOBJTYPES] = {
+const mobjinfo_t romobjinfo[NUMMOBJTYPES] = {
   {   // MT_PLAYER
     -1,   // doomednum
     S_PLAY,   // spawnstate

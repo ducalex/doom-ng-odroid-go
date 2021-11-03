@@ -82,7 +82,6 @@
 #include "d_deh.h"  // Ty 04/08/98 - Externalizations
 #include "lprintf.h"  // jff 08/03/98 - declaration of lprintf
 #include "am_map.h"
-#include "esp_heap_caps.h"
 
 void GetFirstMap(int *ep, int *map); // Ty 08/29/98 - add "-warp x" functionality
 static void D_PageDrawer(void);
@@ -620,12 +619,12 @@ static const char *D_dehout(void)
 // CPhipps - const char* for iwadname, made static
 static void CheckIWAD(const char *iwadname,GameMode_t *gmode,boolean *hassec)
 {
-  int ud=0,rg=0,sw=0,cm=0,sc=0;
-  wadinfo_t header;
-  int fp;
-    
-  if (!(fp = I_Open(iwadname, O_RDONLY | O_BINARY)))
-    I_Error("CheckIWAD: Can't open IWAD %s", iwadname);
+    int ud=0,rg=0,sw=0,cm=0,sc=0;
+    wadinfo_t header;
+    int fp;
+      
+    if (!(fp = I_Open(iwadname, O_RDONLY | O_BINARY)))
+      I_Error("CheckIWAD: Can't open IWAD %s", iwadname);
 
     I_Read(fp, &header, sizeof(header));
     // read IWAD header

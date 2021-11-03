@@ -2098,7 +2098,9 @@ void G_InitNew(skill_t skill, int episode, int map)
 
   if (skill > sk_nightmare)
     skill = sk_nightmare;
-
+  
+  episode %= 100;
+  
   if (episode < 1 || gamemode == shareware) {
     episode = 1;
   }
@@ -2200,7 +2202,7 @@ void G_WriteDemoTiccmd (ticcmd_t* cmd)
     *p++ = (a >> 8) & 0xff;
   }
   *p++ = cmd->buttons;
-  if (fwrite(buf, p-buf, 1, demofp) != 1)
+  if (!demofp || fwrite(buf, p-buf, 1, demofp) != 1)
     I_Error("G_WriteDemoTiccmd: error writing demo");
 
   /* cph - alias demo_p to it so we can read it back */
@@ -2231,30 +2233,30 @@ void G_RecordDemo (const char* name)
       int slot = -1;
       int rc;
       int bytes_per_tic;
-      const byte* pos;
-
-      { /* Read the demo header for options etc */
-        byte buf[200];
-        size_t len = fread(buf, 1, sizeof(buf), demofp);
-        pos = G_ReadDemoHeader(buf, len, false);
-        if (pos)
-        {
-          fseek(demofp, pos - buf, SEEK_SET);
-        }
+      /* Read the demo header for options etc */
+      byte buf[200];
+      size_t len = fread(buf, 1, sizeof(buf), demofp);
+      const byte* pos = G_ReadDemoHeader(buf, len, false);
+      if (pos)
+      {
+        fseek(demofp, pos - buf, SEEK_SET);
       }
       bytes_per_tic = longtics ? 5 : 4;
-    if (pos)
-      /* Now read the demo to find the last save slot */
-      do {
-        byte buf[5];
+    
+      if (pos)
+      {
+        /* Now read the demo to find the last save slot */
+        do {
+          byte buf[5];
 
-        rc = fread(buf, 1, bytes_per_tic, demofp);
-        if (buf[0] == DEMOMARKER) break;
-        if (buf[bytes_per_tic-1] & BT_SPECIAL)
-          if ((buf[bytes_per_tic-1] & BT_SPECIALMASK) == BTS_SAVEGAME)
-            slot = (buf[bytes_per_tic-1] & BTS_SAVEMASK)>>BTS_SAVESHIFT;
-      } while (rc == bytes_per_tic);
-
+          rc = fread(buf, 1, bytes_per_tic, demofp);
+          if (buf[0] == DEMOMARKER) break;
+          if (buf[bytes_per_tic-1] & BT_SPECIAL)
+            if ((buf[bytes_per_tic-1] & BT_SPECIALMASK) == BTS_SAVEGAME)
+              slot = (buf[bytes_per_tic-1] & BTS_SAVEMASK)>>BTS_SAVESHIFT;
+        } while (rc == bytes_per_tic);
+      }
+      
       if (slot == -1) I_Error("G_RecordDemo: No save in demo, can't continue");
 
       /* Return to the last save position, and load the relevant savegame */
@@ -2558,7 +2560,7 @@ void G_BeginRecording (void)
       *demo_p++ = playeringame[i];
   }
 
-  if (fwrite(demostart, 1, demo_p-demostart, demofp) != (size_t)(demo_p-demostart))
+  if (!demofp || fwrite(demostart, 1, demo_p-demostart, demofp) != (size_t)(demo_p-demostart))
     I_Error("G_BeginRecording: Error writing demo header");
   free(demostart);
 }
@@ -2717,20 +2719,20 @@ static const byte* G_ReadDemoHeader(const byte *demo_p, size_t size, boolean fai
           return NULL;
 
         if (!*demo_p++)
-	  compatibility_level = boom_201_compatibility;
+          compatibility_level = boom_201_compatibility;
         else
-	  compatibility_level = boom_compatibility_compatibility;
-	  break;
+          compatibility_level = boom_compatibility_compatibility;
+        break;
       case 202:
         //e6y: check for overrun
         if (CheckForOverrun(header_p, demo_p, size, 1, failonerror))
           return NULL;
 
         if (!*demo_p++)
-	  compatibility_level = boom_202_compatibility;
+          compatibility_level = boom_202_compatibility;
         else
-	  compatibility_level = boom_compatibility_compatibility;
-	  break;
+          compatibility_level = boom_compatibility_compatibility;
+        break;
       case 203:
 	/* LxDoom or MBF - determine from signature
 	 * cph - load compatibility level */
@@ -2869,7 +2871,8 @@ boolean G_CheckDemoStatus (void)
   if (demorecording)
     {
       demorecording = false;
-      fputc(DEMOMARKER, demofp);
+      if (demofp)
+        fputc(DEMOMARKER, demofp);
       I_Error("G_CheckDemoStatus: Demo recorded");
       return false;  // killough
     }

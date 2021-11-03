@@ -118,6 +118,12 @@ typedef struct
 extern lumpinfo_t *lumpinfo;
 extern int        numlumps;
 
+extern const unsigned char SINETABL_dat[];
+extern const unsigned char GAMMATBL_dat[];
+extern const unsigned char TANGTABL_dat[];
+extern const unsigned char TANTOANG_dat[];
+
+
 // killough 4/17/98: if W_CheckNumForName() called with only
 // one argument, pass ns_global as the default namespace
 

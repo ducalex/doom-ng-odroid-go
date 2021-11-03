@@ -20,6 +20,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "esp_system.h"
 #include "esp_heap_caps.h"

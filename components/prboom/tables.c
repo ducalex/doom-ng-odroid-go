@@ -54,9 +54,6 @@
 #include "w_wad.h"
 #include "tables.h"
 
-#include "SINETABL.h"
-#include "TANGTABL.h"
-#include "TANTOANG.h"
 
 // killough 5/3/98: reformatted
 
@@ -121,7 +118,7 @@ void R_LoadTrigTables(void)
       I_Error("R_LoadTrigTables: Invalid TANTOANG");
     W_ReadLump(lump,(unsigned char*)tantoangle);
   }
-#endif
+
   // Endianness correction - might still be non-portable, but is fast where possible
   {
     size_t n;
@@ -143,4 +140,5 @@ void R_LoadTrigTables(void)
     CORRECT_TABLE_ENDIAN(tantoangle);
     lprintf(LO_INFO, "corrected.");
   }
+#endif
 }
