@@ -1,5 +1,6 @@
-#!/bin/bash
-idf.py app
+#!/bin/sh
+
 release=`date +%Y%m%d`;
-../odroid-go-firmware/tools/mkfw/mkfw "Doom ($release)" tile.raw 0 16 1572864 app build/doom-esp32.bin
-mv firmware.fw Doom-alex.fw
+idf.py app
+./tools/mkfw.py "Doom ($release)" tile.raw 0 16 1572864 app build/doom-esp32.bin
+mv firmware.fw Doom-$release.fw
