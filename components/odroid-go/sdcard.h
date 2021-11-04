@@ -16,9 +16,3 @@
 */
 
 void odroid_sdcard_init(void);
-int odroid_sdcard_read_file(char const *name, char **buffer);
-int odroid_sdcard_write_file(char const *name, void *source, int length);
-int odroid_sdcard_mkdir(char const *path);
-int odroid_sdcard_remove(char const *path);
-//#undef fopen
-//#define fopen 

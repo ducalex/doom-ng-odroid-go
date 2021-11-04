@@ -17,14 +17,18 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include <string.h>
+#include <odroid.h>
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
-#include "freertos/task.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <freertos/task.h>
+
 #include "i_system.h"
 
-#include "odroid.h"
 
 extern void iwad_selector(char *argv, int *argc);
 
@@ -44,8 +48,10 @@ void app_main()
 	odroid_system_init();
 
 	// Create required directories
-	odroid_sdcard_mkdir(I_DoomSaveDir());
-	odroid_sdcard_mkdir(I_DoomExeDir());
+	odroid_spi_bus_acquire();
+	mkdir(I_DoomSaveDir(), 0755);
+	mkdir(I_DoomExeDir(), 0755);
+	odroid_spi_bus_release();
 
 	printf("app_main(): IWad selector\n");
 	iwad_selector(doom_argv, &doom_argc);

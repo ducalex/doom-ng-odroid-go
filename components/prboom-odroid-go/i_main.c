@@ -34,12 +34,14 @@
  *-----------------------------------------------------------------------------
  */
 
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
-#ifdef HAVE_UNISTD_H
+
 #include <unistd.h>
-#endif
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <odroid.h>
+
 #include "doomdef.h"
 #include "m_argv.h"
 #include "d_main.h"
@@ -57,192 +59,186 @@
 #include "r_fps.h"
 #include "lprintf.h"
 
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-/* Most of the following has been rewritten by Lee Killough
- *
- * I_GetTime
- * killough 4/13/98: Make clock rate adjustable by scale factor
- * cphipps - much made static
- */
-
+//The gamepad uses keyboard emulation, but for compilation, these variables need to be placed
+//somewhere. THis is as good a place as any.
+int usejoystick = 0;
+int joyleft, joyright, joyup, joydown;
 int realtic_clock_rate = 100;
-static int_64_t I_GetTime_Scale = 1<<24;
+static int_64_t time_scale = 1 << 24;
+
+extern void saveAudioSettings();
+extern int snd_MasterVolume;
 
 static int I_GetTime_Scaled(void)
 {
-  return (int)( (int_64_t) I_GetTime_RealTime() * I_GetTime_Scale >> 24);
+    return (int)((int_64_t)I_GetTime_RealTime() * time_scale >> 24);
 }
 
-
-
-static int  I_GetTime_FastDemo(void)
+static int I_GetTime_FastDemo(void)
 {
-  static int fasttic;
-  return fasttic++;
+    static int fasttic;
+    return fasttic++;
 }
-
-
 
 static int I_GetTime_Error(void)
 {
-  I_Error("I_GetTime_Error: GetTime() used before initialization");
-  return 0;
+    I_Error("I_GetTime_Error: GetTime() used before initialization");
+    return 0;
 }
-
-
 
 int (*I_GetTime)(void) = I_GetTime_Error;
 
-void I_Init(void)
+static int key_yes = 'y';
+static int key_no = 'n';
+
+static const struct
 {
-  /* killough 4/14/98: Adjustable speedup based on realtic_clock_rate */
-  if (fastdemo)
-    I_GetTime = I_GetTime_FastDemo;
-  else
-    if (realtic_clock_rate != 100)
-      {
-        I_GetTime_Scale = ((int_64_t) realtic_clock_rate << 24) / 100;
-        I_GetTime = I_GetTime_Scaled;
-      }
-    else
-      I_GetTime = I_GetTime_RealTime;
+    int ps2mask;
+    int *key;
+} keymap[] = {
+    {1 << ODROID_INPUT_UP, &key_up},
+    {1 << ODROID_INPUT_DOWN, &key_down},
+    {1 << ODROID_INPUT_LEFT, &key_left},
+    {1 << ODROID_INPUT_RIGHT, &key_right},
 
-  {
-    /* killough 2/21/98: avoid sound initialization if no sound & no music */
-    if (!(nomusicparm && nosfxparm))
-      I_InitSound();
-  }
+    {1 << ODROID_INPUT_A, &key_yes},
+    {1 << ODROID_INPUT_A, &key_fire},
+    {1 << ODROID_INPUT_A, &key_menu_enter},
 
-  R_InitInterpolation();
-}
+    {1 << ODROID_INPUT_B, &key_no},
+    {1 << ODROID_INPUT_B, &key_speed},
+    {1 << ODROID_INPUT_B, &key_strafe},
+    {1 << ODROID_INPUT_B, &key_menu_backspace},
 
+    {1 << ODROID_INPUT_MENU, &key_escape},
+    {1 << ODROID_INPUT_VOLUME, &key_map},
+    {1 << ODROID_INPUT_START, &key_use},
+    {1 << ODROID_INPUT_SELECT, &key_weapontoggle},
 
-/* killough 2/22/98: Add support for ENDBOOM, which is PC-specific
- *
- * this converts BIOS color codes to ANSI codes.
- * Its not pretty, but it does the job - rain
- * CPhipps - made static
- */
-
-inline static int convert(int color, int *bold)
-{
-  if (color > 7) {
-    color -= 8;
-    *bold = 1;
-  }
-  switch (color) {
-  case 0:
-    return 0;
-  case 1:
-    return 4;
-  case 2:
-    return 2;
-  case 3:
-    return 6;
-  case 4:
-    return 1;
-  case 5:
-    return 5;
-  case 6:
-    return 3;
-  case 7:
-    return 7;
-  }
-  return 0;
-}
-
-/* CPhipps - flags controlling ENDOOM behaviour */
-enum {
-  endoom_colours = 1,
-  endoom_nonasciichars = 2,
-  endoom_droplastline = 4
+    {0, NULL},
 };
 
-unsigned int endoom_mode;
+static volatile int joyVal = 0;
+
+#define KEY_TRANSITION_DOWN(key) (gamepad_state.values[key] && !gamepad_state.previous[key])
+#define KEY_TRANSITION_UP(key) (!gamepad_state.values[key] && gamepad_state.previous[key])
+#define KEY_DOWN(key) (gamepad_state.values[key])
+#define KEY_UP(key) (!gamepad_state.values[key])
+
+static void JoystickReadCallback(odroid_input_state gamepad_state)
+{
+    int result = 0;
+
+    for (int i = 0; i < ODROID_INPUT_MAX; i++)
+    {
+        result |= (KEY_DOWN(i) ? 0 : 1) << i;
+    }
+
+    if (KEY_DOWN(ODROID_INPUT_START))
+    {
+        if (KEY_TRANSITION_DOWN(ODROID_INPUT_UP))
+        { // brightness up
+            backlight_percentage_set(backlight_percentage_get() + 25);
+            doom_printf("Brightness: %d", backlight_percentage_get());
+        }
+        if (KEY_TRANSITION_DOWN(ODROID_INPUT_DOWN))
+        { // brightness down
+            backlight_percentage_set(backlight_percentage_get() - 25);
+            doom_printf("Brightness: %d", backlight_percentage_get());
+        }
+        if (KEY_TRANSITION_DOWN(ODROID_INPUT_RIGHT))
+        { // volume up
+            if (++snd_MasterVolume > 15)
+                snd_MasterVolume = 15;
+            saveAudioSettings();
+            doom_printf("Volume: %d", snd_MasterVolume);
+        }
+        if (KEY_TRANSITION_DOWN(ODROID_INPUT_LEFT))
+        { // volume down
+            if (--snd_MasterVolume < 0)
+                snd_MasterVolume = 0;
+            saveAudioSettings();
+            doom_printf("Volume: %d", snd_MasterVolume);
+        }
+        result = ~(1 << ODROID_INPUT_START);
+    }
+    joyVal = result;
+}
+
+void I_StartTic(void)
+{
+    static int oldPollJsVal = 0xffff;
+    event_t ev;
+
+    for (int i = 0; keymap[i].key != NULL; i++)
+    {
+        if ((oldPollJsVal ^ joyVal) & keymap[i].ps2mask)
+        {
+            ev.type = (joyVal & keymap[i].ps2mask) ? ev_keyup : ev_keydown;
+            ev.data1 = *keymap[i].key;
+            D_PostEvent(&ev);
+        }
+    }
+
+    oldPollJsVal = joyVal;
+}
+
+void I_Init(void)
+{
+    /* killough 4/14/98: Adjustable speedup based on realtic_clock_rate */
+    if (fastdemo)
+        I_GetTime = I_GetTime_FastDemo;
+    else if (realtic_clock_rate != 100)
+    {
+        time_scale = ((int_64_t)realtic_clock_rate << 24) / 100;
+        I_GetTime = I_GetTime_Scaled;
+    }
+    else
+        I_GetTime = I_GetTime_RealTime;
+
+    if (!(nomusicparm && nosfxparm))
+        I_InitSound();
+
+    R_InitInterpolation();
+}
 
 static void PrintVer(void)
 {
-  char vbuf[200];
-  lprintf(LO_INFO,"%s\n",I_GetVersionString(vbuf,200));
+    char vbuf[200];
+    lprintf(LO_INFO, "%s\n", I_GetVersionString(vbuf, 200));
 }
-
-
-static int has_exited;
 
 /* I_SafeExit
  * This function is called instead of exit() by functions that might be called
  * during the exit process (i.e. after exit() has already been called)
  * Prevent infinitely recursive exits -- killough
  */
-
 void I_SafeExit(int rc)
 {
-  if (!has_exited)    /* If it hasn't exited yet, exit now -- killough */
+    static int has_exited = 0;
+    if (!has_exited) /* If it hasn't exited yet, exit now -- killough */
     {
-      has_exited=rc ? 2 : 1;
-      exit(rc);
+        has_exited = rc ? 2 : 1;
+        exit(rc);
     }
 }
 
-#ifdef SECURE_UID
-uid_t stored_euid = -1;
-#endif
-
-//int main(int argc, const char * const * argv)
-int doom_main(int argc, char const * const *argv)
+int doom_main(int argc, char const *const *argv)
 {
-#ifdef SECURE_UID
-  /* First thing, revoke setuid status (if any) */
-  stored_euid = geteuid();
-  if (getuid() != stored_euid)
-    if (seteuid(getuid()) < 0)
-      fprintf(stderr, "Failed to revoke setuid\n");
-    else
-      fprintf(stderr, "Revoked uid %d\n",stored_euid);
-#endif
+    myargc = argc;
+    myargv = argv;
 
-  myargc = argc;
-  myargv = argv;
+    /* Version info */
+    lprintf(LO_INFO, "\n");
+    PrintVer();
 
-#ifdef _WIN32
-  if (!M_CheckParm("-nodraw")) {
-    /* initialize the console window */
-    Init_ConsoleWin();
-    atexit(Done_ConsoleWin);
-  }
-#endif
-  /* Version info */
-  lprintf(LO_INFO,"\n");
-  PrintVer();
+    odroid_input_set_callback(&JoystickReadCallback);
 
-  /* cph - Z_Close must be done after I_Quit, so we register it first. */
-  atexit(Z_Close);
-  /*
-     killough 1/98:
+    atexit(Z_Close); /* cph - Z_Close must be done after I_Quit, so we register it first. */
+    Z_Init();
+    I_SetAffinityMask();
+    I_PreInitGraphics();
+    D_DoomMain();
 
-     This fixes some problems with exit handling
-     during abnormal situations.
-
-     The old code called I_Quit() to end program,
-     while now I_Quit() is installed as an exit
-     handler and exit() is called to exit, either
-     normally or abnormally. Seg faults are caught
-     and the error handler is used, to prevent
-     being left in graphics mode or having very
-     loud SFX noise because the sound card is
-     left in an unstable state.
-  */
-
-  Z_Init();                  /* 1/18/98 killough: start up memory stuff first */
-  
-  I_SetAffinityMask();
-
-  /* cphipps - call to video specific startup code */
-  I_PreInitGraphics();
-
-  D_DoomMain ();
-  return 0;
+    return 0;
 }

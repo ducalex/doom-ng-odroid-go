@@ -243,7 +243,6 @@ angle_t R_PointToAngle2(fixed_t viewx, fixed_t viewy, fixed_t x, fixed_t y)
 //
 // killough 5/2/98: reformatted
 
-#include "rom/ets_sys.h"
 static void R_InitTextureMapping (void)
 {
   register int i,x;

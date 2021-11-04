@@ -291,7 +291,6 @@ sector_t *R_FakeFlat(sector_t *sec, sector_t *tempsec,
 // Clips the given segment
 // and adds any visible pieces to the line list.
 //
-#include "rom/ets_sys.h"
 static void R_AddLine (seg_t *line)
 {
   int      x1;

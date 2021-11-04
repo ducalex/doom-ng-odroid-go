@@ -16,7 +16,7 @@
 */
 
 #define ODROID_SAMPLE_RATE 22050
-size_t * odroid_sound_write(void *buffer, size_t length);
+size_t odroid_sound_write(void *buffer, size_t length);
 void odroid_sound_set_sample_rate(uint32_t rate);
 void odroid_sound_deinit(void);
 void odroid_sound_init(void);

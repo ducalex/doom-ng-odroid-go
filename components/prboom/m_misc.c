@@ -171,8 +171,6 @@ int         mus_pause_opt; // 0 = kill music, 1 = pause, 2 = continue
 
 extern const char* chat_macros[];
 
-extern int endoom_mode;
-
 extern const char* S_music_files[]; // cournia
 
 /* cph - Some MBF stuff parked here for now
@@ -180,6 +178,7 @@ extern const char* S_music_files[]; // cournia
  */
 int map_point_coordinates;
 int disk_icon;
+int endoom_mode;
 
 default_t defaults[] =
 {

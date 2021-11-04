@@ -19,12 +19,12 @@
 #include <stdio.h>
 #include <string.h> 
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
-#include "freertos/task.h"
-#include "driver/rtc_io.h"
-#include "driver/gpio.h"
-#include "driver/adc.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <freertos/task.h>
+#include <driver/rtc_io.h>
+#include <driver/gpio.h>
+#include <driver/adc.h>
 
 #include "odroid.h"
 
@@ -33,7 +33,7 @@ static bool input_gamepad_initialized = false;
 static void (*odroid_input_callback_fn)(odroid_input_state) = NULL;
 
 
-void odroid_input_read_raw(uint8_t *values)
+static void odroid_input_read_raw(uint8_t *values)
 {
 	memset(values, 0, ODROID_INPUT_MAX);
 
@@ -70,7 +70,7 @@ static void odroid_input_task(void *arg)
     while(1)
     {
         // Read hardware
-        odroid_input_read_raw(&gamepad_state.realtime);
+        odroid_input_read_raw(gamepad_state.realtime);
         changes = 0;
 
         // Debounce
@@ -105,7 +105,6 @@ static void odroid_input_task(void *arg)
 
         memcpy(gamepad_state.previous, gamepad_state.values, ODROID_INPUT_MAX);
 
-        // delay
         vTaskDelay(20 / portTICK_PERIOD_MS);
     }
 }
@@ -124,12 +123,12 @@ int odroid_input_wait_for_button_press(int ticks)
     
     int timeout = xTaskGetTickCount() + ticks;
 
-    odroid_input_read_raw(&previousValues);
+    odroid_input_read_raw(previousValues);
 
     while (true)
     {
         // We don't use gamepad_state because it might be unavailable
-        odroid_input_read_raw(&values);
+        odroid_input_read_raw(values);
 
         for(int i = 0; i < ODROID_INPUT_MAX; i++)
         {

@@ -53,5 +53,4 @@ typedef struct
 odroid_input_state odroid_input_get_state(void);
 void odroid_input_set_callback(void (*callback)(odroid_input_state));
 int  odroid_input_wait_for_button_press(int ticks);
-void odroid_input_read_raw(uint8_t *);
 void odroid_input_init(void);

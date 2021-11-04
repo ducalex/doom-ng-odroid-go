@@ -38,14 +38,14 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <signal.h>
-#include <sched.h>
-#include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
 #include <sys/unistd.h>
 #include <sys/time.h>
 #include <sys/stat.h>
+#include <esp_timer.h>
+#include <odroid.h>
 
 #include "config.h"
 
@@ -58,15 +58,6 @@
 #include "i_system.h"
 #include "i_joy.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
-#include "esp_err.h"
-#include "esp_log.h"
-#include "esp_timer.h"
-
-#include "odroid.h"
-
 #ifdef __GNUG__
 #pragma implementation "i_system.h"
 #endif
@@ -74,78 +65,72 @@
 static int nextHandle = 0;
 static int displaytime = 0;
 
-typedef struct {
-	int ifd;
-	void *addr;
-	int offset;
-	size_t len;
-	int used;
+typedef struct
+{
+    int ifd;
+    void *addr;
+    int offset;
+    size_t len;
+    int used;
 } MmapHandle;
 
 #define NO_MMAP_HANDLES 128
 static MmapHandle mmapHandle[NO_MMAP_HANDLES];
 
-
-static unsigned long getMsTicks()
-{
-  return esp_timer_get_time() / 1000;
-}
-
 int I_GetTime_RealTime(void)
 {
-  return ((esp_timer_get_time() * TICRATE) / 1000000);
-
+    return ((esp_timer_get_time() * TICRATE) / 1000000);
 }
 
 fixed_t I_GetTimeFrac(void)
 {
-  unsigned long now;
-  fixed_t frac;
+    unsigned long now;
+    fixed_t frac;
 
-  now = getMsTicks();
+    now = esp_timer_get_time() / 1000;
 
-  if (tic_vars.step == 0)
-    return FRACUNIT;
-  else
-  {
-    frac = (fixed_t)((now - tic_vars.start + displaytime) * FRACUNIT / tic_vars.step);
-    if (frac < 0)
-      frac = 0;
-    if (frac > FRACUNIT)
-      frac = FRACUNIT;
-    return frac;
-  }
+    if (tic_vars.step == 0)
+        return FRACUNIT;
+    else
+    {
+        frac = (fixed_t)((now - tic_vars.start + displaytime) * FRACUNIT / tic_vars.step);
+        if (frac < 0)
+            frac = 0;
+        if (frac > FRACUNIT)
+            frac = FRACUNIT;
+        return frac;
+    }
 }
 
 void I_GetTime_SaveMS(void)
 {
-  if (!movement_smooth)
-    return;
+    if (!movement_smooth)
+        return;
 
-  tic_vars.start = getMsTicks();
-  tic_vars.next = (unsigned int) ((tic_vars.start * tic_vars.msec + 1.0f) / tic_vars.msec);
-  tic_vars.step = tic_vars.next - tic_vars.start;
+    tic_vars.start = esp_timer_get_time() / 1000;
+    tic_vars.next = (unsigned int)((tic_vars.start * tic_vars.msec + 1.0f) / tic_vars.msec);
+    tic_vars.step = tic_vars.next - tic_vars.start;
 }
 
 unsigned long I_GetRandomTimeSeed(void)
 {
-	return 4; //per https://xkcd.com/221/
+    return 4; //per https://xkcd.com/221/
 }
 
-const char* I_GetVersionString(char* buf, size_t sz)
+const char *I_GetVersionString(char *buf, size_t sz)
 {
-  sprintf(buf,"%s v%s (http://prboom.sourceforge.net/)",PACKAGE,VERSION);
-  return buf;
+    sprintf(buf, "%s v%s (http://prboom.sourceforge.net/)", PACKAGE, VERSION);
+    return buf;
 }
 
-const char* I_SigString(char* buf, size_t sz, int signum)
+const char *I_SigString(char *buf, size_t sz, int signum)
 {
-  return buf;
+    return buf;
 }
 
 void I_uSleep(unsigned long usecs)
 {
-	vTaskDelay(usecs/1000);
+    usleep(usecs);
 }
 
 void I_SetAffinityMask(void)
@@ -154,207 +139,213 @@ void I_SetAffinityMask(void)
 
 const char *I_DoomExeDir(void)
 {
-  return "/sdcard/roms/doom";
+    return "/sdcard/roms/doom";
 }
 
 const char *I_DoomSaveDir(void)
 {
-  return "/sdcard/odroid/data/doom";
+    return "/sdcard/odroid/data/doom";
 }
-
 
 int I_Open(const char *fname, int flags)
 {
-	lprintf(LO_INFO, "I_Open: Opening File: %s\n", fname);
+    lprintf(LO_INFO, "I_Open: Opening File: %s\n", fname);
 
-	odroid_spi_bus_acquire();
-	FILE *handle = fopen(fname, "rb");
-	odroid_spi_bus_release();
+    odroid_spi_bus_acquire();
+    FILE *handle = fopen(fname, "rb");
+    odroid_spi_bus_release();
 
-	if (!handle) {
-		lprintf(LO_INFO, "I_Open: open %s failed\n", fname);
-		return -1;
-	}
+    if (!handle)
+    {
+        lprintf(LO_INFO, "I_Open: open %s failed\n", fname);
+        return -1;
+    }
 
-	return (int)handle;
+    return (int)handle;
 }
 
-
-void I_Read(int handle, void* vbuf, size_t sz)
+void I_Read(int handle, void *vbuf, size_t sz)
 {
-	odroid_spi_bus_acquire();
+    odroid_spi_bus_acquire();
 
-	for (int i = 0; i < 20; i++) {
-		if (fread(vbuf, sz, 1, (FILE*)handle) == 1) {
-			odroid_spi_bus_release();
-			return;
-		}
-		lprintf(LO_INFO, "Error Reading %d bytes\n", (int)sz);
-	}
+    for (int i = 0; i < 20; i++)
+    {
+        if (fread(vbuf, sz, 1, (FILE *)handle) == 1)
+        {
+            odroid_spi_bus_release();
+            return;
+        }
+        lprintf(LO_INFO, "Error Reading %d bytes\n", (int)sz);
+    }
 
-	odroid_spi_bus_release();
+    odroid_spi_bus_release();
 
-	I_Error("I_Read: Error Reading %d bytes after 20 tries", (int)sz);
+    I_Error("I_Read: Error Reading %d bytes after 20 tries", (int)sz);
 }
-
 
 int I_Lseek(int handle, off_t offset, int whence)
 {
-	odroid_spi_bus_acquire();
-	int seeked = fseek((FILE*)handle, offset, whence);
-	odroid_spi_bus_release();
+    odroid_spi_bus_acquire();
+    int seeked = fseek((FILE *)handle, offset, whence);
+    odroid_spi_bus_release();
 
-	return seeked;
+    return seeked;
 }
-
 
 int I_Filelength(int handle)
 {
-	struct stat fileinfo;
-	odroid_spi_bus_acquire();
-	int ret = fstat(handle, &fileinfo);
-	odroid_spi_bus_release();
+    struct stat fileinfo;
+    odroid_spi_bus_acquire();
+    int ret = fstat(handle, &fileinfo);
+    odroid_spi_bus_release();
 
-	if (ret == -1)
-		I_Error("I_Filelength: %s", strerror(errno));
+    if (ret == -1)
+        I_Error("I_Filelength: %s", strerror(errno));
 
-	return fileinfo.st_size;
+    return fileinfo.st_size;
 }
-
 
 void I_Close(int handle)
 {
-	lprintf(LO_INFO, "I_Open: Closing File: %d\n", handle);
+    lprintf(LO_INFO, "I_Open: Closing File: %d\n", handle);
 
-	odroid_spi_bus_acquire();
-	fclose((FILE*)handle);
-	odroid_spi_bus_release();
+    odroid_spi_bus_acquire();
+    fclose((FILE *)handle);
+    odroid_spi_bus_release();
 }
 
-
-char* I_FindFile(const char* fname, const char* ext)
+char *I_FindFile(const char *fname, const char *ext)
 {
-	char filepath[256];
-	char *ret = NULL;
+    char filepath[256];
+    char *ret = NULL;
 
-	odroid_spi_bus_acquire();
-	sprintf(filepath, "%s/%s", I_DoomExeDir(), fname);
-	lprintf(LO_INFO, "Looking for file: %s...", fname);
-	if (access( filepath, R_OK ) != -1) {
-		lprintf(LO_INFO, "Found file: %s\n", filepath);
-		ret = strdup(filepath);
-	} else {
-		lprintf(LO_INFO, "Not found.\n");
-	}
-	odroid_spi_bus_release();
+    odroid_spi_bus_acquire();
+    sprintf(filepath, "%s/%s", I_DoomExeDir(), fname);
+    lprintf(LO_INFO, "Looking for file: %s...", fname);
+    if (access(filepath, R_OK) != -1)
+    {
+        lprintf(LO_INFO, "Found file: %s\n", filepath);
+        ret = strdup(filepath);
+    }
+    else
+    {
+        lprintf(LO_INFO, "Not found.\n");
+    }
+    odroid_spi_bus_release();
 
-	return ret;
+    return ret;
 }
-
 
 // The Odroid GO supports standard file system functions (fopen/fread/etc)
 // But because of the shared bus one MUST lock the screen before doing any SD access.
 
 void I_BeginDiskAccess(void)
 {
-	odroid_spi_bus_acquire();
-	odroid_system_led_set(1);
+    odroid_spi_bus_acquire();
+    odroid_system_led_set(1);
 }
-
 
 void I_EndDiskAccess(void)
 {
-	odroid_spi_bus_release();
-	odroid_system_led_set(0);
+    odroid_spi_bus_release();
+    odroid_system_led_set(0);
 }
-
-
 
 static int getFreeMMapHandle()
 {
-	int n = NO_MMAP_HANDLES;
-	while (mmapHandle[nextHandle].used != 0 && n != 0) {
-		nextHandle++;
-		if (nextHandle == NO_MMAP_HANDLES) nextHandle = 0;
-		n--;
-	}
-	if (n == 0) {
-		I_Error("getFreeMMapHandle: More mmaps than NO_MMAP_HANDLES!");
-	}
-	if (mmapHandle[nextHandle].addr) {
-		free(mmapHandle[nextHandle].addr);
-		mmapHandle[nextHandle].addr = NULL;
-	}
-	int r = nextHandle;
-	nextHandle++;
-	if (nextHandle == NO_MMAP_HANDLES) nextHandle = 0;
+    int n = NO_MMAP_HANDLES;
+    while (mmapHandle[nextHandle].used != 0 && n != 0)
+    {
+        nextHandle++;
+        if (nextHandle == NO_MMAP_HANDLES)
+            nextHandle = 0;
+        n--;
+    }
+    if (n == 0)
+    {
+        I_Error("getFreeMMapHandle: More mmaps than NO_MMAP_HANDLES!");
+    }
+    if (mmapHandle[nextHandle].addr)
+    {
+        free(mmapHandle[nextHandle].addr);
+        mmapHandle[nextHandle].addr = NULL;
+    }
+    int r = nextHandle;
+    nextHandle++;
+    if (nextHandle == NO_MMAP_HANDLES)
+        nextHandle = 0;
 
-	return r;
+    return r;
 }
-
 
 void freeUnusedMmaps(void)
 {
-	lprintf(LO_INFO, "freeUnusedMmaps...\n");
-	for (int i=0; i<NO_MMAP_HANDLES; i++) {
-		//Check if handle is not in use but is mapped.
-		if (mmapHandle[i].used == 0 && mmapHandle[i].addr != NULL) {
-			free(mmapHandle[i].addr);
-			mmapHandle[i].addr = NULL;
-			mmapHandle[i].ifd = 0;
-		}
-	}
+    lprintf(LO_INFO, "freeUnusedMmaps...\n");
+    for (int i = 0; i < NO_MMAP_HANDLES; i++)
+    {
+        //Check if handle is not in use but is mapped.
+        if (mmapHandle[i].used == 0 && mmapHandle[i].addr != NULL)
+        {
+            free(mmapHandle[i].addr);
+            mmapHandle[i].addr = NULL;
+            mmapHandle[i].ifd = 0;
+        }
+    }
 }
-
 
 void *I_Mmap(void *addr, size_t length, int prot, int flags, int ifd, off_t offset)
 {
-	int i;
-	void *retaddr = NULL;
+    int i;
+    void *retaddr = NULL;
 
-	for (i = 0; i < NO_MMAP_HANDLES; i++) {
-		if (mmapHandle[i].offset == offset && mmapHandle[i].len == length && mmapHandle[i].ifd == ifd) {
-			mmapHandle[i].used++;
-			return mmapHandle[i].addr;
-		}
-	}
+    for (i = 0; i < NO_MMAP_HANDLES; i++)
+    {
+        if (mmapHandle[i].offset == offset && mmapHandle[i].len == length && mmapHandle[i].ifd == ifd)
+        {
+            mmapHandle[i].used++;
+            return mmapHandle[i].addr;
+        }
+    }
 
-	i = getFreeMMapHandle();
+    i = getFreeMMapHandle();
 
-	retaddr = malloc(length);
-	if (!retaddr)
-	{
-		lprintf(LO_INFO, "I_Mmap: No free address space. Cleaning up unused cached mmaps...\n");
-		freeUnusedMmaps();
-		retaddr = malloc(length);
-	}
+    retaddr = malloc(length);
+    if (!retaddr)
+    {
+        lprintf(LO_INFO, "I_Mmap: No free address space. Cleaning up unused cached mmaps...\n");
+        freeUnusedMmaps();
+        retaddr = malloc(length);
+    }
 
-	if (retaddr)
-	{
-		I_Lseek(ifd, offset, SEEK_SET);
-		I_Read(ifd, retaddr, length);
-		mmapHandle[i].addr = retaddr;
-		mmapHandle[i].len = length;
-		mmapHandle[i].used = 1;
-		mmapHandle[i].offset = offset;
-		mmapHandle[i].ifd = ifd;
-	} else {
-		I_Error("I_Mmap: Can't mmap offset: %d (len=%d)!", (int)offset, length);
-	}
+    if (retaddr)
+    {
+        I_Lseek(ifd, offset, SEEK_SET);
+        I_Read(ifd, retaddr, length);
+        mmapHandle[i].addr = retaddr;
+        mmapHandle[i].len = length;
+        mmapHandle[i].used = 1;
+        mmapHandle[i].offset = offset;
+        mmapHandle[i].ifd = ifd;
+    }
+    else
+    {
+        I_Error("I_Mmap: Can't mmap offset: %d (len=%d)!", (int)offset, length);
+    }
 
-	return retaddr;
+    return retaddr;
 }
-
 
 int I_Munmap(void *addr, size_t length)
 {
-	for (int i = 0; i < NO_MMAP_HANDLES; i++) {
-		if (mmapHandle[i].addr == addr && mmapHandle[i].len == length) {
-			mmapHandle[i].used--;
-			return 0;
-		}
-	}
+    for (int i = 0; i < NO_MMAP_HANDLES; i++)
+    {
+        if (mmapHandle[i].addr == addr && mmapHandle[i].len == length)
+        {
+            mmapHandle[i].used--;
+            return 0;
+        }
+    }
 
-	I_Error("I_Mmap: Freeing non-mmapped address/len combo!");
-	exit(0);
+    I_Error("I_Mmap: Freeing non-mmapped address/len combo!");
+    exit(0);
 }

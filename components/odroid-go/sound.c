@@ -64,7 +64,7 @@ void odroid_sound_deinit()
 }
 
 
-size_t * odroid_sound_write(void *buffer, size_t length)
+size_t odroid_sound_write(void *buffer, size_t length)
 {
     size_t bytesWritten = 0;
     i2s_write(I2S_NUM_0, buffer, length, &bytesWritten, portMAX_DELAY);
