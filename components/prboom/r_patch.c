@@ -42,7 +42,6 @@
 #include "r_patch.h"
 #include <assert.h>
 
-
 // posts are runs of non masked source pixels
 typedef struct
 {

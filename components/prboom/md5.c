@@ -19,11 +19,11 @@
  *  - Ian Jackson <ian@chiark.greenend.org.uk>.
  * Still in the public domain.
  */
+#include "config.h"
 
 #include <string.h>             /* for memcpy() */
 #include <sys/types.h>          /* for stupid systems */
 
-#include "config.h"
 #include "md5.h"
 
 #ifdef WORDS_BIGENDIAN
@@ -132,7 +132,7 @@ MD5Final(md5byte digest[16], struct MD5Context *ctx)
 
         byteSwap(ctx->buf, 4);
         memcpy(digest, ctx->buf, 16);
-        memset(ctx, 0, sizeof(*ctx));    /* In case it's sensitive */
+        memset(ctx, 0, sizeof(ctx));    /* In case it's sensitive */
 }
 #endif
 

@@ -322,10 +322,8 @@ void spi_lcd_fb_setFont(const uint8_t *font)
 {
     displayFont = font;
 
-    //font_width = font[0];
+    font_width = font[0];
     font_height = font[1];
-    getCharPtr('@');
-    font_width = fontChar.width;
 }
 
 
@@ -373,15 +371,17 @@ void spi_lcd_fb_printf(int x, int y, const char *format, ...)
     int orig_x = x;
     
     for (int i = 0; i < len; i++) {
-        if ((enablePrintWrap && x >= (SCREEN_WIDTH - font_width)) || buffer[i] == '\n') {
+
+        if (!getCharPtr((uint8_t)buffer[i]))
+            continue;
+            
+        int char_width = ((fontChar.width > fontChar.xDelta) ? fontChar.width : fontChar.xDelta);
+        
+        if ((enablePrintWrap && x >= (SCREEN_WIDTH - char_width)) || buffer[i] == '\n') {
             y += font_height + 5;
             x = orig_x;
         }
 
-        if (!getCharPtr((uint8_t)buffer[i]))
-            continue;
-
-        int char_width = ((fontChar.width > fontChar.xDelta) ? fontChar.width : fontChar.xDelta);
         int mask = 0x80;
         int ch = 0;
 

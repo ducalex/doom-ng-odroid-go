@@ -41,7 +41,7 @@
 #include "m_fixed.h"
 
 extern int ms_to_next_tick;
-int I_StartDisplay(void);
+boolean I_StartDisplay(void);
 void I_EndDisplay(void);
 int I_GetTime_RealTime(void);     /* killough */
 #ifndef PRBOOM_SERVER

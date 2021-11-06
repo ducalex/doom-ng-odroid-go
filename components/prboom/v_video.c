@@ -503,7 +503,6 @@ static unsigned short *Palettes16 = NULL;
 static unsigned int *Palettes32 = NULL;
 static int currentPaletteIndex = 0;
 
-
 //
 // V_UpdateTrueColorPalette
 //

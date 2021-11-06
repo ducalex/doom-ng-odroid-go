@@ -51,6 +51,7 @@
 int usejoystick = 0;
 int joyleft, joyright, joyup, joydown;
 int realtic_clock_rate = 100;
+int ms_to_next_tick = 0;
 static int_64_t time_scale = 1 << 24;
 
 extern void saveAudioSettings();

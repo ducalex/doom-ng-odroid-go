@@ -301,6 +301,7 @@ default_t defaults[] =
    def_int, ss_none}, // 0 = kill music when paused, 1 = pause music, 2 = let music continue
   {"snd_channels",{&default_numChannels},{8},1,32,
    def_int,ss_none}, // number of audio events simultaneously // killough
+
   {"Video settings",{NULL},{0},UL,UL,def_none,ss_none},
 #ifdef GL_DOOM
   #ifdef _MSC_VER
@@ -369,8 +370,10 @@ default_t defaults[] =
    def_bool,ss_none},
   {"gl_use_shared_texture_palette",{&gl_use_shared_texture_palette},{0},0,1,
    def_bool,ss_none},
+#ifdef GL_DOOM
   {"gl_sprite_offset",{&gl_sprite_offset},{0}, 0, 5,
    def_int,ss_none}, // amount to bring items out of floor (GL) Mead 8/13/03
+#endif
 #endif
 
   {"Mouse settings",{NULL},{0},UL,UL,def_none,ss_none},

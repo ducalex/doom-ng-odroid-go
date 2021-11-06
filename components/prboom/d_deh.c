@@ -1362,8 +1362,10 @@ char *deh_soundnames[NUMSFX + 1];
 
 void D_BuildBEXTables(void)
 {
+   int i;
+
    // moved from ProcessDehFile, then we don't need the static int i
-   for (int i = 0; i < NUMSTATES; i++)  // remember what they start as for deh xref
+   for (i = 0; i < NUMSTATES; i++)  // remember what they start as for deh xref
      deh_codeptr[i] = states[i].action;
 
   *deh_spritenames = sprnames;

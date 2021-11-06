@@ -131,18 +131,17 @@ typedef enum {
 #define DEN_PLAYER8 4004
 
 // State updates, number of tics / second.
-
 #define TICRATE          35
 
 // The current state of the game: whether we are playing, gazing
 // at the intermission screen, the game final animation, or a demo.
 
 typedef enum {
-  GS_LEVEL=0,
+  GS_LEVEL = 0,
   GS_INTERMISSION,
   GS_FINALE,
   GS_DEMOSCREEN,
-  GS_UNK = -1
+  GS_UNKNOWN = -1,
 } gamestate_t;
 
 //

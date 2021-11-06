@@ -677,7 +677,6 @@ char *(Z_Strdup)(const char *s, int tag, void **user
 #endif
                 )
 {
-  //lprintf(LO_INFO,"Z_Strdup: size %d, string: %s\n", strlen(s)+1, s);
   return strcpy((Z_Malloc)(strlen(s)+1, tag, user DA(file, line)), s);
 }
 

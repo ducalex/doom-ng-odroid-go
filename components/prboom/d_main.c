@@ -207,7 +207,7 @@ void D_Display (void)
   static boolean inhelpscreensstate   = false;
   static boolean isborderstate        = false;
   static boolean borderwillneedredraw = false;
-  static gamestate_t oldgamestate = -1;
+  static gamestate_t oldgamestate = GS_UNKNOWN;
   boolean wipe;
   boolean viewactive = false, isborder = false;
 
@@ -223,7 +223,7 @@ void D_Display (void)
 
   if (gamestate != GS_LEVEL) { // Not a level
     switch (oldgamestate) {
-    case -1:
+    case GS_UNKNOWN:
     case GS_LEVEL:
       V_SetPalette(0); // cph - use default (basic) palette
     default:
@@ -250,7 +250,7 @@ void D_Display (void)
 
     if (setsizeneeded) {               // change the view size if needed
       R_ExecuteSetViewSize();
-      oldgamestate = -1;            // force background redraw
+      oldgamestate = GS_UNKNOWN;            // force background redraw
     }
 
     // Work out if the player view is visible, and if there is a border
@@ -602,8 +602,6 @@ static const char *D_dehout(void)
   return (p && ++p < myargc ? myargv[p] : NULL);
 }
 
-
-
 //
 // CheckIWAD
 //
@@ -727,8 +725,8 @@ static void NormalizeSlashes(char *str)
  */
 static char *FindIWADFile(void)
 {
-  char  * iwad  = NULL;
   int   i;
+  char  * iwad  = NULL;
 
   i = M_CheckParm("-iwad");
   if (i && (++i < myargc)) {
@@ -795,7 +793,7 @@ static void IdentifyVersion (void)
 
   iwad = FindIWADFile();
 
-#if (0)
+#if (defined(GL_DOOM) && defined(_DEBUG))
   // proff 11/99: used for debugging
   {
     FILE *f;
@@ -1331,9 +1329,6 @@ static void D_DoomMainSetup(void)
     nomusicparm = nosound || M_CheckParm("-nomusic");
     nosfxparm   = nosound || M_CheckParm("-nosfx");
   }
-	//Hardcode music and sound disabled -- JD
-    //nomusicparm=true;
-    //nosfxparm=true;
   //jff end of sound/music command line parms
 
   // killough 3/2/98: allow -nodraw -noblit generally
@@ -1373,6 +1368,12 @@ static void D_DoomMainSetup(void)
   // New command-line options for setting a window (-window) 
   // or fullscreen (-nowindow) mode temporarily which is not saved in cfg.
   // It works like "-geom" switch
+  desired_fullscreen = use_fullscreen;
+  if ((p = M_CheckParm("-window")))
+      desired_fullscreen = 0;
+
+  if ((p = M_CheckParm("-nowindow")))
+      desired_fullscreen = 1;
 
   { // -geometry handling, change screen size for this session only
     // e6y: new code by me
@@ -1397,6 +1398,7 @@ static void D_DoomMainSetup(void)
   //jff 9/3/98 use logical output routine
   lprintf(LO_INFO,"V_Init: allocate screens.\n");
   V_Init();
+
   // CPhipps - autoloading of wads
   // Designed to be general, instead of specific to boomlump.wad
   // Some people might find this useful
@@ -1552,7 +1554,6 @@ static void D_DoomMainSetup(void)
   //jff 9/3/98 use logical output routine
   lprintf(LO_INFO,"I_Init: Setting up machine state.\n");
   I_Init();
-//heap_caps_print_heap_info(MALLOC_CAP_SPIRAM);
 
   //jff 9/3/98 use logical output routine
   lprintf(LO_INFO,"S_Init: Setting up sound.\n");

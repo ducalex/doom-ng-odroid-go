@@ -210,6 +210,7 @@ angle_t R_PointToAngle(fixed_t x, fixed_t y)
                               ANG270-1-tantoangle[SlopeDiv(x,y)] : // octant 5
     0;
   }
+
   // R_PointToAngleEx merged into R_PointToAngle
   // e6y: The precision of the code above is abysmal so use the CRT atan2 function instead!
   if (oldx != x || oldy != y)
@@ -217,7 +218,6 @@ angle_t R_PointToAngle(fixed_t x, fixed_t y)
     oldx = x;
     oldy = y;
     oldresult = (int)(atan2(y, x) * ANG180/M_PI);
-
   }
   return oldresult;
 }
@@ -275,7 +275,6 @@ static void R_InitTextureMapping (void)
             if (t > viewwidth+1)
               t = viewwidth+1;
         }
-//		ets_printf("Viewangle %d x %d, width %d\n", i, t, viewwidth);
       viewangletox[i] = t;
     }
 
@@ -424,6 +423,7 @@ void R_ExecuteSetViewSize (void)
       fixed_t cosadj = D_abs(finecosine[xtoviewangle[i]>>ANGLETOFINESHIFT]);
       distscale[i] = FixedDiv(FRACUNIT,cosadj);
     }
+
 }
 
 //

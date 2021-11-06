@@ -648,7 +648,6 @@ void M_ChooseSkill(int choice)
   M_ClearMenus ();
 }
 
-
 /////////////////////////////
 //
 // LOAD GAME MENU
@@ -2649,6 +2648,7 @@ static void M_DrawColPal(void)
 // background, title, instruction line, and items.
 
 void M_DrawAutoMap(void)
+
 {
   inhelpscreens = true;    // killough 4/6/98: Force status bar redraw
 
@@ -3245,6 +3245,7 @@ void M_Messages(int choice)
 // background, title, instruction line, and items.
 
 void M_DrawMessages(void)
+
 {
   inhelpscreens = true;
   M_DrawBackground("FLOOR4_6", 0); // Draw background

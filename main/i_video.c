@@ -44,6 +44,7 @@
 #include "lprintf.h"
 
 static uint16_t lcdpal[256];
+int desired_fullscreen = 1;
 int use_fullscreen = 0;
 int use_doublebuffer = 0;
 

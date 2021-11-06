@@ -52,7 +52,7 @@
 #include "v_video.h"
 #include "r_demo.h"
 #include "r_fps.h"
-#include "i_system.h"
+
 //
 // MAP related Lookup tables.
 // Store VERTEXES, LINEDEFS, SIDEDEFS, etc.
@@ -1315,8 +1315,8 @@ static void P_AddLineToSector(line_t* li, sector_t* sector)
 // modified to return totallines (needed by P_LoadReject)
 static int P_GroupLines (void)
 {
-  line_t *li;
-  sector_t *sector;
+  register line_t *li;
+  register sector_t *sector;
   int i,j, total = numlines;
 
   // figgi

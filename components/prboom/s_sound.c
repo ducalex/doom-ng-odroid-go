@@ -85,8 +85,8 @@ int snd_SfxVolume = 15;
 // Maximum volume of music.
 int snd_MusicVolume = 15;
 
-// Maximum volume of master.
-int snd_MasterVolume = 8;
+// Master volume
+int snd_MasterVolume = 15;
 
 // whether songs are mus_paused
 static boolean mus_paused;
@@ -425,18 +425,6 @@ void S_UpdateSounds(void* listener_p)
 
 
 
-void S_SetMasterVolume(int volume)
-{
-  if (!snd_card)
-    return;
-  if (volume < 0 || volume > 15)
-    I_Error("S_SetMasterVolume: Attempt to set master volume at %d", volume);
-  snd_MasterVolume = volume;
-  I_SetMusicVolume(snd_MusicVolume);
-}
-
-
-
 void S_SetMusicVolume(int volume)
 {
   //jff 1/22/98 return if music is not enabled
@@ -458,6 +446,17 @@ void S_SetSfxVolume(int volume)
   if (volume < 0 || volume > 127)
     I_Error("S_SetSfxVolume: Attempt to set sfx volume at %d", volume);
   snd_SfxVolume = volume;
+}
+
+
+
+void S_SetMasterVolume(int volume)
+{
+  if (!snd_card)
+    return;
+  if (volume < 0 || volume > 15)
+    I_Error("S_SetMasterVolume: Attempt to set master volume at %d", volume);
+  snd_MasterVolume = volume;
   I_SetMusicVolume(snd_MusicVolume);
 }
 
@@ -608,9 +607,9 @@ int S_AdjustSoundParams(mobj_t *listener, mobj_t *source,
   // It happens in multiplayer demos only.
   //
   // Stack trace is:
-  // P_SetupLevel() \ P_LoadThings() \ P_SpawnMapThing() \ P_SpawnPlayer(players[0]) \x
-  // P_SetupPsprites() \ P_BringUpWeapon() \ S_StartSound(players[0]->mo, sfx_sawup) \x
-  // S_StartSoundAtVolume() \ S_AdjustSoundParams(players[displayplayer]->mo, ...);
+  // P_SetupLevel() / P_LoadThings() / P_SpawnMapThing() / P_SpawnPlayer(players[0]) /
+  // P_SetupPsprites() / P_BringUpWeapon() / S_StartSound(players[0]->mo, sfx_sawup) /
+  // S_StartSoundAtVolume() / S_AdjustSoundParams(players[displayplayer]->mo, ...);
   // players[displayplayer]->mo is NULL
   //
   // There is no more crash on e1cmnet3.lmp between e1m2 and e1m3

@@ -64,12 +64,10 @@
 
 //#define STANDALONE  /* uncomment this to make MMUS2MID.EXE */
 #ifndef STANDALONE
+#include "config.h"
 #include "m_swap.h"
 #include "z_zone.h"
 #endif
-
-
-#include "config.h"
 
 // some macros to decode mus event bit fields
 
@@ -329,7 +327,7 @@ int mmus2mid(const UBYTE *mus, MIDI *mididata, UWORD division, int nocomp)
   int i, event, data;
   const UBYTE *musptr;
   size_t muslen;
-  static MUSheader MUSh;
+  MUSheader MUSh;
   UBYTE MIDIchan2track[MIDI_TRACKS];  // killough 10/7/98: fix too small array
   int MUS2MIDchannel[MIDI_TRACKS];    // killough 10/7/98: fix too small array
 

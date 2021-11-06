@@ -125,8 +125,6 @@ char *AddDefaultExtension(char *path, const char *ext)
 // CPhipps - source is an enum
 //
 // proff - changed using pointer to wadfile_info_t
-
-
 static void W_AddFile(wadfile_info_t *wadfile) 
 // killough 1/31/98: static, const
 {
@@ -206,8 +204,6 @@ static void W_AddFile(wadfile_info_t *wadfile)
         lump_p->li_namespace = ns_global;              // killough 4/17/98
         strncpy (lump_p->name, fileinfo->name, 8);
 	lump_p->source = wadfile->src;                    // Ty 08/29/98
-
-
       }
 
     free(fileinfo2free);      // killough
@@ -226,12 +222,12 @@ static int IsMarker(const char *marker, const char *name)
     (*name == *marker && !strncasecmp(name+1, marker, 7));
 }
 
-
 // killough 4/17/98: add namespace tags
+
 static void W_CoalesceMarkedResource(const char *start_marker,
                                      const char *end_marker, int li_namespace)
 {
-  lumpinfo_t *marked = malloc(sizeof(lumpinfo_t) * numlumps);
+  lumpinfo_t *marked = malloc(sizeof(*marked) * numlumps);
   size_t i, num_marked = 0, num_unmarked = 0;
   int is_marked = 0, mark_end = 0;
   lumpinfo_t *lump = lumpinfo;
@@ -269,9 +265,7 @@ static void W_CoalesceMarkedResource(const char *start_marker,
 
   free(marked);                                   // free marked list
 
-
   numlumps = num_unmarked + num_marked;           // new total number of lumps
-
 
   if (mark_end)                                   // add end marker
     {
@@ -336,8 +330,8 @@ int (W_CheckNumForName)(register const char *name, register int li_namespace)
   // Doom wads.
 
   while (i >= 0 && (strncasecmp(lumpinfo[i].name, name, 8) ||
-                    lumpinfo[i].li_namespace != li_namespace)) 
-	    i = lumpinfo[i].next;
+                    lumpinfo[i].li_namespace != li_namespace))
+    i = lumpinfo[i].next;
 
   // Return the matching lump, or -1 if none found.
 
@@ -423,7 +417,6 @@ void W_Init(void)
   // killough 1/24/98: change interface to use M_START/M_END explicitly
   // killough 4/17/98: Add namespace tags to each entry
   // killough 4/4/98: add colormap markers
-
   W_CoalesceMarkedResource("S_START", "S_END", ns_sprites);
   W_CoalesceMarkedResource("F_START", "F_END", ns_flats);
   W_CoalesceMarkedResource("C_START", "C_END", ns_colormaps);
@@ -468,7 +461,7 @@ int W_LumpLength (int lump)
 void W_ReadLump(int lump, void *dest)
 {
   lumpinfo_t *l = lumpinfo + lump;
-  lprintf(LO_INFO,"W_ReadLump %d, dest: %p\n", lump, dest);
+
 #ifdef RANGECHECK
   if (lump >= numlumps)
     I_Error ("W_ReadLump: %i >= numlumps",lump);

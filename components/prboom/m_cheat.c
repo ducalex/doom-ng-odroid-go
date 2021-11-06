@@ -42,7 +42,6 @@
 #include "sounds.h"
 #include "dstrings.h"
 #include "r_main.h"
-#include "lprintf.h"
 #include "p_map.h"
 #include "d_deh.h"  // Ty 03/27/98 - externalized strings
 /* cph 2006/07/23 - needs direct access to thinkercap */
@@ -422,7 +421,7 @@ static void cheat_behold()
 static void cheat_clev(char buf[3])
 {
   int epsd, map;
-  lprintf(LO_INFO, "cheat_clev: %s", buf);
+
   if (gamemode == commercial)
     {
       epsd = 1; //jff was 0, but espd is 1-based

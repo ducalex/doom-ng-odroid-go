@@ -69,10 +69,10 @@ void I_StopSound(int handle);
 // Called by S_*() functions
 //  to see if a channel is still playing.
 // Returns 0 if no longer playing, 1 if playing.
-int I_SoundIsPlaying(int handle);
+boolean I_SoundIsPlaying(int handle);
 
 // Called by m_menu.c to let the quit sound play and quit right after it stops
-int I_AnySoundStillPlaying(void);
+boolean I_AnySoundStillPlaying(void);
 
 // Updates the volume, separation,
 //  and pitch of a sound channel.

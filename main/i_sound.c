@@ -213,12 +213,12 @@ void I_StopSound(int handle)
 {
 }
 
-int I_SoundIsPlaying(int handle)
+boolean I_SoundIsPlaying(int handle)
 {
     return gametic < handle;
 }
 
-int I_AnySoundStillPlaying(void)
+boolean I_AnySoundStillPlaying(void)
 {
     return false;
 }
