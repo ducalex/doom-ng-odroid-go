@@ -42,7 +42,15 @@ START+RIGHT | Sound up
 
 # Compilation
 
-ESP-IDF version 4.0.1 or greater is required to compile.
+## ESP-IDF 4.x
+ESP-IDF version 4.0.1 or greater is required to compile the current code.  
 
 - `idf.py app`
 - `./tools/mkfw.py doom.fw "Doom" tile.raw 0 0 0 app build/doom-esp32.bin`
+
+
+## ESP-IDF 3.3
+Release 20190922 is the last one that can be built with ESP-IDF 3.3.  
+There is a zipped snapshot in the `data` folder, in case the git history gets lost.
+
+- `./builddoom.sh`
