@@ -90,14 +90,14 @@ int odroid_system_battery_level()
     return 0;
 }
 
-void odroid_fatal_error(char *error)
+void odroid_fatal_error(const char *error)
 {
     printf("Error: %s\n", error);
     spi_lcd_init();
     spi_lcd_fb_setPalette(NULL);
     spi_lcd_fb_clear();
-    spi_lcd_fb_print(0, 0, "A fatal error occurred :(");
-    spi_lcd_fb_print(0, 50, error);
+    spi_lcd_fb_printf(0, 0, "A fatal error occurred :(");
+    spi_lcd_fb_printf(0, 50, "%s", error);
     spi_lcd_fb_flush();
     odroid_sound_deinit();
     exit(-1);

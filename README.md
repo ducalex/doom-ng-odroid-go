@@ -36,12 +36,13 @@ START+RIGHT | Sound up
 # To do / Known issues
 
 - Fix the random lags. It might be caused by SD card access on the shared bus.
-
 - Fix the memory allocation failures due to memory fragmentation (especially when switching levels)
-
 - Make it possible to delete savegames.
-
 - Add support for external DAC
 
 # Compilation
 
+ESP-IDF version 4.0.1 or greater is required to compile.
+
+- `idf.py app`
+- `./tools/mkfw.py doom.fw "Doom" tile.raw 0 0 0 app build/doom-esp32.bin`

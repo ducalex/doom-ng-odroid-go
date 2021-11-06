@@ -38,4 +38,4 @@ void odroid_system_init();
 void odroid_system_led_set(int value);
 void odroid_spi_bus_acquire();
 void odroid_spi_bus_release();
-void odroid_fatal_error(char *error);
+void odroid_fatal_error(const char *error);

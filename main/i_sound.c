@@ -1,15 +1,9 @@
-/* Emacs style mode select   -*- C++ -*-
- *-----------------------------------------------------------------------------
- *
- *
- *  PrBoom: a Doom port merged with LxDoom and LSDLDoom
- *  based on BOOM, a modified and improved DOOM engine
- *  Copyright (C) 1999 by
- *  id Software, Chi Hoang, Lee Killough, Jim Flynn, Rand Phares, Ty Halderman
- *  Copyright (C) 1999-2000 by
- *  Jess Haas, Nicolas Kalkhof, Colin Phipps, Florian Schulze
- *  Copyright 2005, 2006 by
- *  Florian Schulze, Colin Phipps, Neil Stevens, Andrey Budko
+/* 
+ *  PrBoom: a Doom port based on BOOM merged with LxDoom and LSDLDoo
+ * 
+ *  Copyright (C) 1999 by id Software, Chi Hoang, Lee Killough, Jim Flynn, Rand Phares, Ty Halderman
+ *  Copyright (C) 1999-2000 by Jess Haas, Nicolas Kalkhof, Colin Phipps, Florian Schulze
+ *  Copyright 2005, 2006 by Florian Schulze, Colin Phipps, Neil Stevens, Andrey Budko
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -25,12 +19,9 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
  *  02111-1307, USA.
- *
- * DESCRIPTION:
- *  System interface for sound.
- *
- *-----------------------------------------------------------------------------
  */
+
+#include "config.h"
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
@@ -39,8 +30,6 @@
 #include <math.h>
 #include <nvs.h>
 #include <odroid.h>
-
-#include "config.h"
 
 #include "d_main.h"
 #include "z_zone.h"
@@ -98,7 +87,7 @@ bool musicPlaying = false;
 // This function loads the sound data from the WAD lump,
 //  for single sound.
 //
-static void *getsfx(char *sfxname, int *len)
+static void *getsfx(const char *sfxname, int *len)
 {
     unsigned char *sfx;
     unsigned char *paddedsfx;
