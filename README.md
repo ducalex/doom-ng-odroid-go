@@ -1,3 +1,9 @@
+# This port is now abandoned.
+I have made a new port as part of [Retro-Go](https://github.com/ducalex/retro-go/). Memory usage has been greatly improved and stuttering has been eliminated.  
+Retro-Go can be built with only DOOM enabled so there is no point in also maintaining this standalone port.
+
+
+
 # Description
 
 This is an improvement of [doom-ng-odroid-go](https://github.com/mad-ady/doom-ng-odroid-go/) which itself is an improvement of [doom-odroid-go](https://github.com/OtherCrashOverride/doom-odroid-go/).
